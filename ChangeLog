@@ -1,0 +1,308 @@
+### 2013-05-26 v0.957 beta
+
+  * STS/IAM security tokens support added
+  Documentation typo fixed - setup instructions was incorrect - need to install LWP::Protocol::https instead of
+  LWP::Useragent::https (LWP::Protocol::https is a typo, and does not exists)
+
+### 2013-05-26 v0.956 beta
+
+  * Fixed - 'Restore' command now skips retrieval of files, which were retrieved by mtglacier in last 24h (retrievals
+  tracked in Journal using system clock). Also existing files skipped. Previous behavior was: skip only existing files. 
+
+  * Some more error handling in HTTP processing
+
+### 2013-05-26 v0.955 beta
+
+  * Fixed - timeout error from underlying HTTP Library was not detected
+
+### 2013-05-19 v0.954 beta
+
+  * Fixed bug - when child worker terminated with a signal, it's possible that STDOUT buffers won't be flushed, and
+  as some error messages were printed to STDOUT they was truncated in this case.
+
+### 2013-05-19 v0.953 beta
+
+  * Error messages added if detect journal from future version of mtglacier. Also other errors in parsing
+  line properly handled.
+
+  * Error message added - refuse to work with journal files where last line does not end with LF (or CRLF). That could
+  mean journal is truncated/damaged.
+
+  * Possibility to work with Journal files, which use CRLF as line separator
+
+  * Error message (instead of unexpected error) added for case when filenames are too big (limit
+  is 700 ASCII or 350 2-bytes UTF-8). Limitation section updated for this case in README.
+
+### 2013-05-19 v0.952 beta
+
+  * Some error handling rework. Errors for file opens (permissions problems), invalid characters in filenames, some misc
+  errors, are thrown with sane error message and helpful information
+
+  * Some more internal changes related to internal IPC protocol
+
+  * Documentation: 'Limitations' section added.
+
+### 2013-05-09 v0.951 beta
+
+  * Bug fixed: In previous version (v0.944) a bug was introduced when downloading inventory (download_inventory_command).
+  If inventory size (JSON encoded) was more than 999999 bytes (~1Mb), download failed with a message:
+  "unexpected end of string while parsing JSON string, at character offset NNNNN (before "(end of string)")
+  at ... /lib/App/MtAws/LineProtocol.pm line 42. (notice LineProtocol.pm, other file will mean different issue)
+
+  * download_inventory command CPU and memory usage optimized
+
+  * Some internal changes related to internal IPC protocol
+
+### 2013-04-30 v0.944 beta
+
+  * Better signal/program termination handling.
+  Signal number has hardcoded, so on (some?) (non-linux?) systems that was a different signal, resulting in
+  core dump after successful program termination (signal with default action core dump)
+  Also previously, after termination mtglacier were sending much more signals to it child processes, than
+  required for communication, this could result in segfault it Perl (again, after successful termination) 
+
+  * Reworked messages when mtglacier terminated (with Ctrl-C or exception)
+
+  * select() call was not protected from EINTR, this could case crash in rare circumstances (for example if ran
+  under "truss -f" on FreeBSD (strace -f analog)
+
+  * There was a mix of select()/eof() and buffered IO in Perl code, this could lead to bugs in the future.
+
+  * Protect IO calls from possible EINTR to avoid possible Perl
+  bug http://www.perlmonks.org/?node_id=1026468 http://www.perlmonks.org/?node_id=1026542
+
+  * Workaround a Perl "feature": When terminal-encoding set to single-byte encoding (i.e. under *BSD), whole thing
+  can hang (with 100% CPU) if random data (i.e. user files content, non UTF-8 filenames, binary hashes) printed to
+  STDERR (i.e. a stacktrace after error) https://rt.perl.org/rt3//Public/Bug/Display.html?id=117537
+
+  * Documentation: This ChangeLog reformatted for better readability
+
+  * Documentation: Journal Concept section added https://github.com/vsespb/mt-aws-glacier#journal-concept
+
+  * Documentation: --from-dir was changed to --dir and --to-vault changed to --vault (in code this change was several
+  versions ago. both options are valid now. --from-dir and --to-vault will be deprecated soon)
+
+### 2013-04-27 v0.943 beta
+
+  * Debug code added to troubleshoot issues #28,#33:
+  If MTGLACIER_DEBUG_INVENTORY=1 is set, download-inventory command
+  will write two log files: _download_inventory_body.log and _download_inventory_headers.log with
+  request/response headers and response body
+
+### 2013-04-09 v0.942 beta
+
+  * Regression fixed - print user friendly error message in case Permission Denied errors.
+
+### 2013-04-07 v0.941 beta
+
+  * Regression fixed - A code which prints user friendly error message, in case HTTPS libraries are not installed,
+  was not working.
+
+  * leaf-optimization option added (default is on).
+  Allows to disable file tree traversal leaf-optimization for (some? broken?) CIFS/CD-ROM filesystems
+
+### 2013-03-19 v0.936 beta
+
+  * File selection implemented (see "File selection options" in README)
+  
+  * --dry-run command implemented
+  
+  * Bug fixed - it was impossible to use some options in config (like 'from-dir' 'to-vault'). Internally
+  those were option aliases.
+
+### 2013-03-18 v0.935 beta
+
+  * Fixed - check-local-hash should not crash on 0-size files (even though normally there should not be any)
+
+### 2013-03-18 v0.934 beta
+
+  * Better handling of IO errors in 'check-local-hash' command - print error, continue with other files,
+  return exit code 1 in the end.
+
+### 2013-03-13 v0.933 beta
+
+  * Fix crash in 'help' command, bug was introduced a day ago.
+  
+  * New version numbering for beta versions - 0.9XY. Where 'X' is a month number of year 2013. 'Y' is number a of
+  a release in this month. So 0.933beta is 3rd release in April 2013
+
+### 2013-03-12: v0.89 beta
+
+  * Single-byte character encodings support for *BSD systems added (see "Configuring Character Encoding") in README.
+  
+  * When uploading from STDIN and file is empty, don't create Amazon Glacier upload id before throwing error
+
+### 2013-03-04: v0.88 beta
+
+  * upload-file command implemented (upload from STDIN or single upload from file). See README.
+
+  * Internal: New Config Engine (config/command line options processing) - will help implement
+  advanced functionality in the future
+
+  * Fix possible crash when read(2) system call can return partial result,
+  see http://www.perlmonks.org/?node_id=435814
+
+### 2013-02-23: v0.87 beta
+
+  * More verbose error message if we found broken UTF-8 in filenames
+
+  * More verbose error message in case of permission problems when reading files from disk
+
+  * Error checking for key/secret/region format added
+
+  * Some minor internal changes and test improvements
+
+### 2013-01-29: v0.86 beta
+
+  * Bug fixed: when doing retrieval or delete, crash after successful finishing (only happened
+  when concurrency=1). Regression of bug fixed in 0.76beta.
+
+  * Changed project file structure. Modules moved to lib/App/MtAws
+
+  * mtglacier.pl now deprected, use mtglacier
+
+  * Now you can execute mtglacier command from any directory, or create a symlink to it - it will find
+  other package files by itself
+
+  * Minor fixes in help command output and cosmetic changes
+
+### 2013-01-28: v0.85 beta
+
+  * Create/delete vault support
+
+### 2013-01-28: v0.84 beta
+
+  * HTTPS Support added
+
+  * Bug fixed: Some (UTF-8) metadata characters was
+  double-encoded (however it can be read without problems)
+
+  * Compatibility - Amazon Glacier Metadata: only backward compatible with previous versions.
+
+  * Documentation improvements
+
+  * Error checking improved when reading config file
+
+### 2013-01-21: v0.83 beta
+
+  * Bug fixed. File modification time 1970-01-01T00:00:00Z0 (i.e. epoch time = 0 ) was causing crash when
+  uploading and missing file report when check-local-hash
+
+  * Main script: Changed shebang from /usr/bin/perl to /usr/bin/env - this will
+  allow Mac Port users to work out of the box
+
+  * Main script: Cosmetic changes in --help output
+
+  * Documentation: added names of CentOS packages, better example of config
+  file, cosmetic changes, fixed spelling mistakes
+
+### 2013-01-12: v0.82 beta
+
+  * retrieve-inventory/download-inventory commands added. You can now restore journal file
+  from scratch, from Amazon Glacier metadata
+
+  * Now when downloading files from glacier - restore original modification time
+
+  * Fixed - File modification time - date before 1970 were not working
+
+  * Improvement in error checking command line parameters
+
+  * Error checking added for read/write availability of journal file
+
+  * Internal: improvements to unit tests
+	
+### 2013-01-02: v0.81 beta
+
+  * Error handling when parsing command line implemented + --help command
+
+  * Security - considering filenames coming from "external" sources (from Glacier and from Journal file)
+  as unsecure. Sanitize/check it.
+
+  * Some internal changes to TreeHash implementing (does not affect
+  working code, but needs for future enhancements)
+
+  * Dependency removed - MIME::Base64::encode_base64url (implemented in 2010 in
+  MIME::Base64), This function is re-implemented. So we can use older versions of this module.
+
+### 2012-12-27: v0.80 beta
+
+  * Storing Amazon Glacier metadata (x-amz-archive-description) when
+  upload files implemented (using custom format).
+
+  * More verbose output for check-local-hash command
+
+  * Internal: Huge testsuite improvements
+
+  * Internal: Refactored: command-line options
+  processing, Glacier requests code, main program, misc
+
+  * New Journal format: added support of file modification time, added journal
+  version makers (software fully works with old journal files)
+
+### 2012-12-07: v0.78 beta
+
+  * Full internal UTF-8 support introduced. Can use wide characters in filenames, command line options
+
+### 2012-12-05: v0.77 beta
+
+  * Replace File::Path::make_path with legacy method File::Path::mkpath so it's compatible now with
+  older perl distribution (File::Path 1.08 CentOS 5.8)
+
+  * fixed problem when relative filenames start with "0" character
+
+### 2012-11-21: v0.76 beta
+
+  * Retrieval work improved: Can use more than just 50 first retrieval jobs (walking job list
+  pagination). Requesting only completed job list,	so use fewer requests.
+
+  * Fixed bug when restore process crashed after successful finishing (only happened when concurrency=1)
+
+  * Documentation fixes: Installation instructions improved. Help/Contribute section added.
+
+### 2012-11-17: v0.75 beta
+
+  * Bug fixed when signature not calculated
+  right with retrieve requests (bug found in 0.74 after SHA256 optimization)
+
+  * Increased internal limit for maximum in-progress files while uploading (was 3 now 30)
+
+### 2012-11-15: v0.74 beta
+
+  * Improved CPU usage apprx 30% - 1) SHA256 was calculated twice sometimes 2) In case data chunk < 1 MB we can
+  use that TreeHash is equal to SHA256
+
+  * Debug code removed, which were causing failing requests in 20% cases
+
+  * Some refactoring
+
+### 2012-11-15: v0.73 beta
+
+  * Sign request right before sending to network. Fixing the following 1) when request is retried due to 408/500 error,
+  we resign it, thus timestamp won't expire 2) put all heavy operations like SHA calculation before signature/timestamp
+  calculation
+
+  * Some legacy code removed
+
+### 2012-10-24: v0.72 beta
+
+  * Some effort to manage mtglacier version information, print version each run. Report version in HTTP
+  UserAgent string.
+
+  * Show some progress when reading large local directory listings
+
+  * Retry with throttling 408/500 HTTP requests. 408 can mean timeout/bad bandwidth. 500 means Amazon not ready yet.
+
+  * Some old unused code removed
+
+  * Option --max-number-of-files now works with "sync" and limits number of files to synchronize
+
+  * More verbose output
+
+  * For certain commands like Sync read only not-yet-synced filenames into memory (saves memory when working 
+  with huge filesets)
+
+  * Use Journal module to handle journals and file listings + unit test the module
+
+### 2012-08-28: v0.7 beta
+
+  * initial release
