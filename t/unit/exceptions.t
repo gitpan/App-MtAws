@@ -25,7 +25,7 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 63;
+use Test::More tests => 65;
 use Test::Deep;
 use Encode;
 use FindBin;
@@ -182,9 +182,9 @@ is exception_message(exception 'code' => 'My message %04d a_42%', a_42 => 42), '
 
 # confess tests
 
-ok ! defined eval { exception_message(exception 'code' => 'My message %04d a_42%', b_42 => 42); 1 };
-ok ! defined eval { exception_message(exception 'code' => 'My message %a_42%', b_42 => 42); 1 };
-ok ! defined eval { exception_message(exception 'code' => 'My message %string a_42%', b_42 => 42); 1 };
+is 'My message :NULL:', exception_message(exception 'code' => 'My message %04d a_42%', b_42 => 42);
+is 'My message :NULL:', exception_message(exception 'code' => 'My message %a_42%', b_42 => 42);
+is 'My message :NULL:', exception_message(exception 'code' => 'My message %string a_42%', b_42 => 42);
 ok exception_message(exception 'code' => 'My message %string a_42%', a_42 => 42, c_42=>33);
 
 
@@ -195,9 +195,7 @@ sub test_error(&$$)
 {
 	my ($cb, $where, $e) = @_;
 	my $out=''; # perl 5.8.x issue warning if undefined $out is used in open() below
-	{
-		local(*STDERR);
-		open STDERR, '>', \$out or die "Can't open STDERR: $!";
+	capture_stderr $out, sub {
 		eval { die $e };
 		dump_error($where);
 	};
@@ -211,6 +209,13 @@ test_error {
 		message => "MyMessage"};
 	ok $out eq "ERROR: MyMessage\n";
 } '', exception mycode => 'MyMessage';
+
+test_error {
+	my ($out, $err) = @_;
+	cmp_deeply $err, superhashof { code => 'mycode',
+		message => "MyMessage %errno%"};
+	ok $out eq "ERROR: MyMessage 123\n";
+} '', exception mycode => 'MyMessage %errno%', errno => 123;
 
 test_error {
 	my ($out, $err) = @_;

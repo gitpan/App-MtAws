@@ -24,13 +24,15 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 44;
+use Test::More tests => 50;
 use Test::Deep;
 use Encode;
 use FindBin;
 use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use Data::Dumper;
 use File::Path;
+use File::Temp;
+
 our $OpenStack = undef;
 our $BinmodeStack = undef;
 
@@ -46,7 +48,8 @@ use TestUtils;
 warning_fatal();
 
 
-my $mtroot = '/tmp/mt-aws-glacier-tests';
+my $TEMP = File::Temp->newdir();
+my $mtroot = $TEMP->dirname();
 my $tmp_file = "$mtroot/open_file_test";
 
 unlink $tmp_file;
@@ -88,6 +91,21 @@ new_stack {
 new_stack {
 	ok open_file(my $f, $tmp_file, mode => '>>', binary => 1);
 	is '>>', last_call->[1]
+};
+
+new_stack {
+	ok open_file(my $f, $tmp_file, mode => '>>', binary => 1);
+	is '>>', last_call->[1]
+};
+
+new_stack {
+	ok open_file(my $f, $tmp_file, mode => '+>>', binary => 1);
+	is '+>>', last_call->[1]
+};
+
+new_stack {
+	ok open_file(my $f, $tmp_file, mode => '+<', binary => 1);
+	is '+<', last_call->[1]
 };
 
 new_stack {

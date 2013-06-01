@@ -13,7 +13,7 @@ mt-aws-glacier is a client application for Glacier.
 
 ## Version
 
-* Version 0.957 beta (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
+* Version 0.961 beta (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
 
 [mt-aws glacier changelog]:https://github.com/vsespb/mt-aws-glacier/blob/master/ChangeLog
 
@@ -66,7 +66,7 @@ mt-aws-glacier is a client application for Glacier.
 ## Installation/System requirements
 
 Script is made for Linux OS. Tested under Ubuntu and Debian. Should work under other Linux distributions. Lightly tested under Mac OS X.
-Should NOT work under Windows. 
+Should NOT work under Windows. Minimum Perl version required is 5.8.8 (pretty old, AFAIK there are no supported distributions with older Perls) 
 
 * Install the following CPAN modules:
 
@@ -185,7 +185,7 @@ For files created by mt-aws-glacier version 0.8x and higher original filenames w
 
 Journal is a file in local filesystem, which contains list of all files, uploaded to Amazon Glacier.
 Strictly saying, this file contains a list of operations (list of records), performed with Amazon Glacier vault. Main operations are:
-file creation and file deletion.
+file creation, file deletion and file retrieval.
 
 Create operation records contains: *local filename* (relative to transfer root - `--dir`), file *size*, file last *modification time* (in 1 second resolution), file *TreeHash* (Amazon
 hashing algorithm, based on SHA256), file upload time, and Amazon Glacier *archive id*
@@ -300,7 +300,42 @@ most of them are not portable. Take a look on archives file formats - different 
 
 It's possible that in the future `mtglacier` will support some other metadata things.
 
-## Other commands
+## Specification for some commands
+
+### `restore`
+
+Initiate Amazon Glacier RETRIEVE oparation for files listed in Journal, which don't *exist* on local filesystem and for
+which RETRIEVE was not initiated during last 24 hours (that information obtained from *Journal* too - each retrieval logged
+into journal together with timestamp)
+
+### `restore-completed`
+
+Donwloads files, listed in Journal, which don't *exist* on local filesystem, and which were previously
+RETRIEVED (using `restore` command) and now available for download (i.e. in a ~4hours after retrieve).
+Unlike `restore` command, list of retrieved files is requested from Amazon Glacier servers at runtime using API, not from
+journal.
+
+Data downloaded to unique temporary files (created in same directory as destination file). Temp files renamed to real files
+only when download successfully finished. In case program terminated with error or after Ctrl-C, temp files with unfinished
+downloads removed.
+
+If `segment-size` specified (greater than 0) and particular file size in megabytes is larger than `segment-size`,
+download for this file performed in multiple segments, i.e. using HTTP `Range:` header (each of size `segment-size` MiB, except last,
+which can be smaller). Segments are downloaded in parallel (and different segments from different files can
+be downloaded at same time).
+
+Only values that are power of two supported for `segment-size` now. 
+
+Currenly if download breaks due to network problem, no resumption is performed, download of file or of current segment
+started from beginning.
+
+In case multi-segment downloads, TreeHash reported by Amazon Glacier for each segment is compared with actual TreeHash, calculated for segment at runtime.
+In case of mismatch error is thrown and process stopped. Final TreeHash for whole file not checked yet.
+
+In case full-file downloads, TreeHash reported by Amazon Glacier for whole file is compared with one calculated runtime and with one found in Journal file,
+in case of mismatch, error is thrown and process stopped. 
+
+Unlike `partsize` option, `segment-size` does not allocate buffers in memory of the size specified, so you can use large `segment-size`.
 
 ### `upload-file`
 
@@ -502,13 +537,22 @@ NOTE: Any command line option can be used in config file as well.
 
 		--partsize=16
 
-3. `max-number-of-files` (with `sync` or `restore` commands) - limit number of files to sync/restore. Program will finish when reach this limit.
+3. `segment-size` (with `restore-completed` command) - size of download segment, in MiB  (default: none)
+
+	If `segment-size` specified (greater than zero), and file size in megabytes is larger than `segment-size`, download performed in
+	multiple segments.
+
+	If omited or zero, multi-segment download is disabled (i.e this is default)
+
+	`segment-size` should be power of two.
+
+4. `max-number-of-files` (with `sync` or `restore` commands) - limit number of files to sync/restore. Program will finish when reach this limit.
 
 		--max-number-of-files=100
 
-4. `key/secret/region/vault/protocol` - you can override any option from config
+5. `key/secret/region/vault/protocol` - you can override any option from config
 
-5. `dry-run` (with `sync`, `purge-vault`, `restore`, `restore-completed ` and even `check-local-hash` commands) - do not perform actual work, print what will happen instead. 
+6. `dry-run` (with `sync`, `purge-vault`, `restore`, `restore-completed ` and even `check-local-hash` commands) - do not perform actual work, print what will happen instead. 
 
 		--dry-run
 

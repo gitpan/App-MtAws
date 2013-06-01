@@ -4,7 +4,7 @@
       "Victor Efimov"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.4003, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "Module::Build version 0.4005, CPAN::Meta::Converter version 2.120921",
    "license" : [
       "open_source"
    ],
@@ -13,15 +13,21 @@
       "version" : "2"
    },
    "name" : "App-MtAws",
+   "no_index" : {
+      "directory" : [
+         "lib/App/MtAws"
+      ]
+   },
    "prereqs" : {
       "build" : {
          "requires" : {
+            "Data::Dumper" : "0",
             "DateTime" : "0",
-            "MIME::Base64" : "3.11",
             "TAP::Harness" : "0",
             "Test::Deep" : "0",
             "Test::MockModule" : "0",
-            "Test::Spec" : "0"
+            "Test::Spec" : "0",
+            "open" : "0"
          }
       },
       "configure" : {
@@ -31,18 +37,43 @@
       },
       "runtime" : {
          "requires" : {
+            "Carp" : "0",
             "Digest::SHA" : "0",
+            "Encode" : "0",
+            "Exporter" : "0",
+            "File::Basename" : "0",
+            "File::Find" : "0",
+            "File::Path" : "0",
+            "File::Spec" : "0",
+            "File::stat" : "0",
+            "FindBin" : "0",
+            "Getopt::Long" : "0",
+            "HTTP::Request::Common" : "0",
+            "IO::Handle" : "0",
+            "IO::Pipe" : "0",
+            "IO::Select" : "0",
             "JSON::XS" : "0",
             "LWP::Protocol::https" : "0",
             "LWP::UserAgent" : "6",
-            "perl" : "v5.8.8"
+            "List::Util" : "0",
+            "POSIX" : "0",
+            "PerlIO::encoding" : "0",
+            "Time::Local" : "0",
+            "Time::localtime" : "0",
+            "bytes" : "0",
+            "constant" : "0",
+            "lib" : "0",
+            "perl" : "5.008008",
+            "strict" : "0",
+            "utf8" : "0",
+            "warnings" : "0"
          }
       }
    },
    "provides" : {
       "App::MtAws" : {
          "file" : "lib/App/MtAws.pm",
-         "version" : "0.957"
+         "version" : "0.961"
       },
       "App::MtAws::CheckLocalHashCommand" : {
          "file" : "lib/App/MtAws/CheckLocalHashCommand.pm",
@@ -178,6 +209,7 @@
       "bugtracker" : {
          "web" : "https://github.com/vsespb/mt-aws-glacier/issues"
       },
+      "homepage" : "http://mt-aws.com/",
       "license" : [
          "http://www.gnu.org/licenses/gpl-3.0.txt"
       ],
@@ -185,5 +217,5 @@
          "url" : "https://github.com/vsespb/mt-aws-glacier"
       }
    },
-   "version" : "0.957"
+   "version" : "0.961"
 }

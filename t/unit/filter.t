@@ -49,7 +49,7 @@ sub assert_parse_filter_error($$)
 	is $F->{error}, $err;
 }
 
-sub assert_parse_filter_ok(@$)
+sub assert_parse_filter_ok(@)
 {
 	my ($expected, @data) = (pop, @_);
 	my $F = App::MtAws::Filter->new();
@@ -404,7 +404,10 @@ check 'z/ex[1|2]mple',
 	            },
 	            {
 	              'pattern' => 'dir/',
-	              're' => qr!(^|/)dir\/!, # TODO: under perl5.8.9 some misslatch here
+
+	              # Test::Deep problem here https://rt.cpan.org/Ticket/Display.html?id=85785
+	              're' => $] > 5.01 ? qr!(^|/)dir\/! : ignore(),
+	              
 	              'action' => '-',
 	              'match_subdirs' => 1,
 	              'notmatch' => '',

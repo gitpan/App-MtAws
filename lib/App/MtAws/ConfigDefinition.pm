@@ -132,9 +132,14 @@ sub check_dir_or_relname
 	}
 }
 
+sub http_download_options
+{
+	scope('file_downloads', optional('segment-size'))
+}
+
 sub download_options
 {
-	mandatory('dir'), check_base_dir, optional('chunksize');
+	mandatory('dir'), check_base_dir, http_download_options();
 }
 
 sub check_wait
@@ -270,9 +275,9 @@ sub get_config
 			validation(option('key'), $invalid_format, sub { /^[A-Za-z0-9]{20}$/ }),
 			validation(option('secret'), $invalid_format, sub { /^[\x21-\x7e]{40}$/ }),
 			validation(option('region'), $invalid_format, sub { /^[A-Za-z0-9\-]{3,20}$/ }),
+			optional(validation(option('token'), $invalid_format, sub { /^[\x21-\x7e]{20,1024}$/ })),
 			validation(option('protocol', default => 'http'), message('protocol must be "https" or "http"'), sub { /^https?$/ }),
 		);
-		validation(option('token'), $invalid_format, sub { /^[\x21-\x7e]{20,1024}$/ });
 		
 		for (option('concurrency', type => 'i', default => 4)) {
 			validation $_, $must_be_an_integer, stop => 1, sub { $_ =~ /^\d+$/ };
@@ -286,35 +291,38 @@ sub get_config
 		}
 		
 		for (option('partsize', type => 'i', default => 16)) {
-			validation $_, $must_be_an_integer, stop => 1, sub { $_ =~ /^\d+$/ }; # TODO: type=i
+			validation $_, $must_be_an_integer, stop => 1, sub { $_ =~ /^\d+$/ };
 			validation $_, message('Part size must be power of two'), sub { ($_ != 0) && (($_ & ($_ - 1)) == 0) };
 		}
-		
+		for (option('segment-size', type => 'i')) {
+			validation $_, $must_be_an_integer, stop => 1, sub { $_ =~ /^\d+$/ };
+			validation $_, message('%option a% must be zero or power of two'), sub { (($_ & ($_ - 1)) == 0) }; # TODO: proper format
+		}
 		
 		validation positional('vault-name'), message('Vault name should be 255 characters or less and consisting of a-z, A-Z, 0-9, ".", "-", and "_"'), sub {
 			/^[A-Za-z0-9\.\-_]{1,255}$/
 		};
 		
-		command 'create-vault' => sub { validate(optional('config'), optional('token'), mandatory(@encodings), mandatory('vault-name'), mandatory(@config_opts), check_https),	};
-		command 'delete-vault' => sub { validate(optional('config'), optional('token'), mandatory(@encodings), mandatory('vault-name'), mandatory(@config_opts), check_https),	};
+		command 'create-vault' => sub { validate(optional('config'), mandatory(@encodings), mandatory('vault-name'), mandatory(@config_opts), check_https),	};
+		command 'delete-vault' => sub { validate(optional('config'), mandatory(@encodings), mandatory('vault-name'), mandatory(@config_opts), check_https),	};
 		
 		command 'sync' => sub {
 			validate(mandatory(
-				optional('config'), optional('token'), mandatory(@encodings), @config_opts, check_https, qw/dir vault concurrency partsize/, writable_journal('journal'),
+				optional('config'), mandatory(@encodings), @config_opts, check_https, qw/dir vault concurrency partsize/, writable_journal('journal'),
 				optional(qw/max-number-of-files leaf-optimization/),
 				filter_options, optional('dry-run')
 			))
 		};
 		
 		command 'upload-file' => sub {
-			validate(mandatory(  optional('config'), optional('token'), mandatory(@encodings), @config_opts, check_https, qw/vault concurrency/, writable_journal('journal'),
+			validate(mandatory(  optional('config'), mandatory(@encodings), @config_opts, check_https, qw/vault concurrency/, writable_journal('journal'),
 				check_dir_or_relname, check_base_dir, mandatory('partsize'), check_max_size  ))
 		};
 				
 		
 		command 'purge-vault' => sub {
 			validate(mandatory(
-				optional('config'), optional('token'), mandatory(@encodings), @config_opts, check_https, qw/vault concurrency/,
+				optional('config'), mandatory(@encodings), @config_opts, check_https, qw/vault concurrency/,
 				writable_journal(existing_journal('journal')),
 				deprecated('dir'), filter_options, optional('dry-run')
 			))
@@ -322,7 +330,7 @@ sub get_config
 		
 		command 'restore' => sub {
 			validate(mandatory(
-				optional('config'), optional('token'), mandatory(@encodings), @config_opts, check_https, qw/dir vault max-number-of-files concurrency/,
+				optional('config'), mandatory(@encodings), @config_opts, check_https, qw/dir vault max-number-of-files concurrency/,
 				writable_journal(existing_journal('journal')),
 				filter_options, optional('dry-run')
 			))
@@ -330,25 +338,25 @@ sub get_config
 		
 		command 'restore-completed' => sub {
 			validate(mandatory(
-				optional('config'), optional('token'), mandatory(@encodings), @config_opts, check_https, qw/dir vault concurrency/, existing_journal('journal'),
-				filter_options, optional('dry-run')
+				optional('config'), mandatory(@encodings), @config_opts, check_https, qw/dir vault concurrency/, existing_journal('journal'),
+				filter_options, optional('dry-run'), http_download_options
 			))
 		};
 		
 		command 'check-local-hash' => sub {
 			# TODO: deprecated option to-vault
 			validate(mandatory(
-				optional('config'), optional('token'), mandatory(@encodings), @config_opts, check_https, qw/dir/, existing_journal('journal'), deprecated('vault'),
+				optional('config'), mandatory(@encodings), @config_opts, check_https, qw/dir/, existing_journal('journal'), deprecated('vault'),
 				filter_options, optional('dry-run')
 			))
 		};
 		
 		command 'retrieve-inventory' => sub {
-			validate(mandatory(optional('config'), optional('token'), mandatory(@encodings), @config_opts, check_https, qw/vault/))
+			validate(mandatory(optional('config'), mandatory(@encodings), @config_opts, check_https, qw/vault/))
 		};
 		
 		command 'download-inventory' => sub {
-			validate(mandatory(optional('config'), optional('token'), mandatory(@encodings), @config_opts, check_https, 'vault', empty_journal('new-journal')))
+			validate(mandatory(optional('config'), mandatory(@encodings), @config_opts, check_https, 'vault', empty_journal('new-journal')))
 		};
 	});
 	return $c;
@@ -356,44 +364,3 @@ sub get_config
 
 1;
 __END__
-
-		my @remote = options qw/concurrency key vault secret token region protocol/;
-		my @dir_or_relname = options qw/set-rel-filename dir/;
-		options qw/base-dir include exclude partsize journal filename stdin wait chunksize zz/;
-		
-		message 'mandatory', "Please specify %option a%";
-		#positional 'vault-name';
-		#validation 'vault-name', sub { /\w+/ };
-	
-		validation 'concurrency', message('concurrency_too_high', "%option option% should be less than 30"), sub { $_ < 30 };
-		
-		
-		command 'create-vault' => sub {
-			mandatory('vault-name')
-		};
-		
-		command 'sync' => sub {
-			 mandatory( mandatory(@remote), 'journal',  mandatory('dir'), check_base_dir, optional('partsize'), filter_options ); 
-		};
-		command 'upload-file' => sub {
-			validate mandatory(@remote), mandatory('journal'),  scope('dir', check_dir_or_relname, check_base_dir), optional('partsize'); 
-		};
-		command 'retrieve-file' => sub {
-			validate mandatory(@remote), mandatory('journal'),  check_wait, scope('dir', check_dir_or_relname, check_base_dir), optional 'partsize' 
-		};
-
-		command 'retrieve' => sub {
-			mandatory(@remote), mandatory 'journal',  check_wait, filter_options
-		};
-		
-		command 'download' => sub {
-			mandatory(@remote), mandatory 'journal',  download_options, filter_options 
-		};
-		
-		command 'upload-file' => sub {
-			mandatory(@remote), mandatory 'journal',  check_dir_or_relname, check_base_dir, optional 'partsize' 
-		};
-		
-		command 'retrieve-file' => sub {
-			mandatory(@remote), mandatory 'journal',  check_wait, check_dir_or_relname, check_base_dir, optional 'partsize' 
-		};

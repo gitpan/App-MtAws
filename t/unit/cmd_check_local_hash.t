@@ -31,10 +31,12 @@ use App::MtAws::Journal;
 use File::Path;
 use POSIX;
 use TestUtils;
+use File::Temp;
 
 warning_fatal();
 
-my $mtroot = '/tmp/mt-aws-glacier-tests';
+my $TEMP = File::Temp->newdir();
+my $mtroot = $TEMP->dirname();
 my $localroot = "$mtroot/cmd_check_local_hash";
 my $journal = "$localroot/journal";
 my $rootdir = "$localroot/root";
@@ -85,11 +87,8 @@ my $data = 	{
 		filter => $options->{filters}{parsed});
 	require App::MtAws::CheckLocalHashCommand;
 	
-	my $out;
-	ok ! defined do {
-		local(*STDOUT);
-		open STDOUT, '>', \$out or die "Can't open STDOUT: $!";
-		
+	my $out='';
+	ok ! defined capture_stdout $out, sub {
 		eval {
 			App::MtAws::CheckLocalHashCommand::run($options, $j);
 			1;
