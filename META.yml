@@ -25,7 +25,7 @@ no_index:
 provides:
   App::MtAws:
     file: lib/App/MtAws.pm
-    version: 0.961
+    version: 0.961_1
   App::MtAws::CheckLocalHashCommand:
     file: lib/App/MtAws/CheckLocalHashCommand.pm
     version: 0
@@ -71,6 +71,15 @@ provides:
   App::MtAws::GlacierRequest:
     file: lib/App/MtAws/GlacierRequest.pm
     version: 0
+  App::MtAws::HttpFileWriter:
+    file: lib/App/MtAws/HttpSegmentWriter.pm
+    version: 0
+  App::MtAws::HttpSegmentWriter:
+    file: lib/App/MtAws/HttpSegmentWriter.pm
+    version: 0
+  App::MtAws::HttpWriter:
+    file: lib/App/MtAws/HttpSegmentWriter.pm
+    version: 0
   App::MtAws::InventoryDownloadJob:
     file: lib/App/MtAws/InventoryDownloadJob.pm
     version: 0
@@ -112,6 +121,12 @@ provides:
     version: 0
   App::MtAws::RetrieveInventoryJob:
     file: lib/App/MtAws/RetrieveInventoryJob.pm
+    version: 0
+  App::MtAws::SegmentDownloadJob:
+    file: lib/App/MtAws/SegmentDownloadJob.pm
+    version: 0
+  App::MtAws::SingleDownloadJob:
+    file: lib/App/MtAws/SingleDownloadJob.pm
     version: 0
   App::MtAws::Task:
     file: lib/App/MtAws/Task.pm
@@ -158,4 +173,4 @@ resources:
   homepage: http://mt-aws.com/
   license: http://www.gnu.org/licenses/gpl-3.0.txt
   repository: https://github.com/vsespb/mt-aws-glacier
-version: 0.961
+version: 0.961_1
