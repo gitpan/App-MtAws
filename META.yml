@@ -1,7 +1,7 @@
 ---
 abstract: 'mt-aws/glacier - Perl Multithreaded Multipart sync to Amazon Glacier'
 author:
-  - 'Victor Efimov'
+  - 'Victor Efimov <vs@vs-dev.com>'
 build_requires:
   Data::Dumper: 0
   DateTime: 0
@@ -20,12 +20,12 @@ meta-spec:
   version: 1.4
 name: App-MtAws
 no_index:
-  directory:
-    - lib/App/MtAws
+  namespace:
+    - App::MtAws
 provides:
   App::MtAws:
     file: lib/App/MtAws.pm
-    version: 0.961_1
+    version: 0.961_2
   App::MtAws::CheckLocalHashCommand:
     file: lib/App/MtAws/CheckLocalHashCommand.pm
     version: 0
@@ -173,4 +173,4 @@ resources:
   homepage: http://mt-aws.com/
   license: http://www.gnu.org/licenses/gpl-3.0.txt
   repository: https://github.com/vsespb/mt-aws-glacier
-version: 0.961_1
+version: 0.961_2
