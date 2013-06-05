@@ -27,7 +27,7 @@ no_index:
 provides:
   App::MtAws:
     file: lib/App/MtAws.pm
-    version: 0.962_1
+    version: 0.962
   App::MtAws::CheckLocalHashCommand:
     file: lib/App/MtAws/CheckLocalHashCommand.pm
     version: 0
@@ -177,4 +177,4 @@ resources:
   homepage: http://mt-aws.com/
   license: http://www.gnu.org/licenses/gpl-3.0.txt
   repository: https://github.com/vsespb/mt-aws-glacier
-version: 0.962_1
+version: 0.962
