@@ -5,6 +5,7 @@ author:
 build_requires:
   Data::Dumper: 0
   DateTime: 0
+  HTTP::Daemon: 5
   TAP::Harness: 0
   Test::Deep: 0
   Test::MockModule: 0
@@ -26,7 +27,7 @@ no_index:
 provides:
   App::MtAws:
     file: lib/App/MtAws.pm
-    version: 0.961_4
+    version: 0.962_1
   App::MtAws::CheckLocalHashCommand:
     file: lib/App/MtAws/CheckLocalHashCommand.pm
     version: 0
@@ -73,6 +74,9 @@ provides:
     file: lib/App/MtAws/GlacierRequest.pm
     version: 0
   App::MtAws::HttpFileWriter:
+    file: lib/App/MtAws/HttpSegmentWriter.pm
+    version: 0
+  App::MtAws::HttpMemoryWriter:
     file: lib/App/MtAws/HttpSegmentWriter.pm
     version: 0
   App::MtAws::HttpSegmentWriter:
@@ -150,12 +154,12 @@ requires:
   File::stat: 0
   FindBin: 0
   Getopt::Long: 0
-  HTTP::Request::Common: 0
+  HTTP::Request::Common: 5
   IO::Handle: 0
   IO::Pipe: 0
   IO::Select: 0
   JSON::XS: 0
-  LWP: 0
+  LWP: 5
   List::Util: 0
   POSIX: 0
   PerlIO::encoding: 0
@@ -173,4 +177,4 @@ resources:
   homepage: http://mt-aws.com/
   license: http://www.gnu.org/licenses/gpl-3.0.txt
   repository: https://github.com/vsespb/mt-aws-glacier
-version: 0.961_4
+version: 0.962_1

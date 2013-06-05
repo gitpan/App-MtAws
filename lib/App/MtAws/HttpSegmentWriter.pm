@@ -40,17 +40,12 @@ sub initialize
 {
 	my ($self) = @_;
     $self->{write_threshold} = 2*1024*1024;
-    
-    # when to append string to existing, or when to use new buffer
-    # this actually affects both string concatenation performance and file write performance
-    # (data flushed right after writing single append_threshold chunk); 
-    $self->{append_threshold} = 64*1024; # 1024*1024;
-    $self->{size} or confess;
 }
 
 sub reinit
 {
-	my ($self) = @_;
+	my ($self, $size) = @_;
+	$self->{size}=$size;
 	$self->{totalsize}=0;
 	$self->{total_commited_length} = $self->{pending_length} = $self->{total_length} = 0;
 	$self->{buffer} = '';
@@ -101,7 +96,7 @@ sub finish
 	my ($self) = @_;
 	$self->_flush();
 	$self->{total_commited_length} == $self->{total_length} or confess; 
-	return $self->{total_length} == $self->{size} ? ('ok') : ('retry', 'Unexpected end of data');
+	return ($self->{total_length} && ($self->{total_length} == $self->{size})) ? ('ok') : ('retry', 'Unexpected end of data');
 }
 
 package App::MtAws::HttpSegmentWriter;
@@ -144,10 +139,10 @@ sub initialize
 
 sub reinit
 {
-	my ($self) = @_;
+	my $self = shift;
 	$self->{incr_position} = 0;
 	$self->{treehash} = App::MtAws::TreeHash->new();
-	$self->SUPER::reinit();
+	$self->SUPER::reinit(@_);
 }
 
 sub treehash { shift->{treehash} }
@@ -204,12 +199,12 @@ sub initialize
 
 sub reinit
 {
-	my ($self) = @_;
+	my $self = shift;
 	undef $self->{fh};
 	open_file($self->{fh}, $self->{tempfile}, mode => '+<', binary => 1) or confess "cant open file $self->{tempfile} $!";
 	binmode $self->{fh};
 	$self->{treehash} = App::MtAws::TreeHash->new();
-	$self->SUPER::reinit();
+	$self->SUPER::reinit(@_);
 }
 
 sub treehash { shift->{treehash} }
@@ -228,6 +223,48 @@ sub finish
 	my @r = $self->SUPER::finish();
 	close $self->{fh} or confess;
 	return @r;
+}
+
+
+package App::MtAws::HttpMemoryWriter;
+
+use strict;
+use warnings;
+use utf8;
+use App::MtAws::Utils;
+use Carp;
+use base qw/App::MtAws::HttpWriter/;
+
+
+sub new
+{
+    my ($class, %args) = @_;
+    my $self = {};
+    bless $self, $class;
+    return $self;
+}
+
+sub reinit
+{
+	my $self = shift;
+	$self->{size} = shift;
+	$self->{buffer} = '';
+	$self->{total_length} = 0;
+}
+
+sub add_data
+{
+	my $self = $_[0];
+	return unless defined($_[1]);
+	$self->{buffer} .= $_[1];
+	$self->{total_length} += length($_[1]);
+	1;
+}
+
+sub finish
+{
+	my ($self) = @_;
+	return ($self->{total_length} && ($self->{total_length} == $self->{size})) ? ('ok') : ('retry', 'Unexpected end of data');
 }
 
 1;

@@ -13,7 +13,7 @@ mt-aws-glacier is a client application for Glacier.
 
 ## Version
 
-* Version 0.961 beta (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
+* Version 0.962 beta (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
 
 [mt-aws glacier changelog]:https://github.com/vsespb/mt-aws-glacier/blob/master/ChangeLog
 
@@ -568,6 +568,13 @@ For more information see [find][find] and [File::Find][File::Find] manuals.
 [Amazon STS/IAM Using Temporary Security Credentials to Access AWS]:http://docs.aws.amazon.com/STS/latest/UsingSTS/UsingTokens.html
 [find]:http://unixhelp.ed.ac.uk/CGI/man-cgi?find
 [File::Find]:http://search.cpan.org/perldoc?File%3A%3AFind
+
+8. `timeout` (all commands which connect Amazon Glacier API)
+
+	Sets the timeout value in seconds, default value is 180 seconds. Request to Amazon Glacier is retried, if if no activity
+	on the connection to the server is observed for `timeout` seconds. This means that the time it takes for the complete whole
+	request might be longer.
+
 
 ## Configuring Character Encodings
 

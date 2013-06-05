@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = "0.961_4beta";
+our $VERSION = "0.962_1beta";
 
 use constant ONE_MB => 1024*1024;
 
@@ -335,6 +335,7 @@ Common options:
 	--filter --include --exclude - File filtering
 	--dry-run - Don't do anything
 	--token - to be used with STS/IAM
+	--timeout - socket timeout
 Commands:
 	sync
 		--leaf-optimization - Don't use directory hardlinks count when traverse.
