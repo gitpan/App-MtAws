@@ -11,6 +11,8 @@ die "OS unsupported\n" if ($^O eq 'MSWin32');
 
 my $build = Module::Build->new(
 	module_name => 'App::MtAws',
+	use_tap_harness    => 1,
+	tap_harness_args   => { jobs => 8 },
 	author => 'Victor Efimov <vs@vs-dev.com>',
 	dist_author => 'Victor Efimov <vs@vs-dev.com>',
 	recursive_test_files=>1,
@@ -34,7 +36,6 @@ my $build = Module::Build->new(
 		
 		'LWP' => 5,
 		'HTTP::Request::Common' => 5, # required by LWP::UserAgent, but I use i directly also
-		# 'LWP::Protocol::https' => 6, # optional.
 		'JSON::XS' => 0,
 
 
@@ -65,6 +66,7 @@ my $build = Module::Build->new(
 		'constant' => 0,
 		'lib' => 0,
 		'strict' => 0,
+		'integer' => 0,
 		'utf8' => 0,
 		'warnings' => 0,
 		'FindBin' => 0,
@@ -78,6 +80,7 @@ my $build = Module::Build->new(
 		'Test::MockModule' => 0,
 		'DateTime' => 0,
 		'Test::Spec' => 0,
+		'URI' => 0,
 		'HTTP::Daemon' => 5,
 
 		# CORE MODULES OR DUAL-LIFE MODULES
@@ -85,6 +88,9 @@ my $build = Module::Build->new(
 		'Time::HiRes' => 0,
 		'open' => 0,
 		
+	},
+	recommends => {
+		'LWP::Protocol::https' => 6,
 	}
 );
 

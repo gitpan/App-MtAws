@@ -18,25 +18,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::FileFinishJob;
-
+package App::MtAws::FileVerifyAndUploadJob;
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
-
+use App::MtAws::FileCreateJob;
+use Carp;
+use App::MtAws::Exceptions;
+use App::MtAws::Utils;
+use App::MtAws::TreeHash;
 
 sub new
 {
     my ($class, %args) = @_;
     my $self = \%args;
     bless $self, $class;
-    $self->{upload_id}||die;
-    $self->{filesize}||die;
-    defined($self->{mtime})||die;
+    defined($self->{filename})||die;
     defined($self->{relfilename})||die;
-    $self->{th}||die;
+    defined($self->{delete_after_upload})||die;
+    $self->{treehash}||die;
+    $self->{partsize}||die;
     $self->{raised} = 0;
     return $self;
 }
@@ -49,14 +52,8 @@ sub get_task
 		return ("wait");
 	} else {
 		$self->{raised} = 1;
-		$self->{th}->calc_tree();
-		$self->{final_hash} = $self->{th}->get_final_hash();
-		return ("ok", App::MtAws::Task->new(id => "finish_upload",action=>"finish_upload", data => {
-			upload_id => $self->{upload_id},
-			filesize => $self->{filesize},
-			mtime => $self->{mtime},
-			relfilename => $self->{relfilename},
-			final_hash => $self->{final_hash}
+		return ("ok", App::MtAws::Task->new(id => "verify_file", action=>"verify_file", data => {
+			map { $_ => $self->{$_} } qw/filename relfilename treehash/
 		} ));
 	}
 }
@@ -66,14 +63,25 @@ sub finish_task
 {
 	my ($self, $task) = @_;
 	if ($self->{raised}) {
-		if ($self->{finish_cb}) {
-			return ("ok replace", $self->{finish_cb}->($task));
+		confess unless defined($task->{result}{match});
+		
+		if ($task->{result}{match}) {
+			return ('done');
 		} else {
-			return ("done");
+			return ("ok replace", App::MtAws::FileCreateJob->new(
+				map { $_ => $self->{$_} } qw/filename relfilename partsize/,
+				$self->{delete_after_upload} ?
+					(finish_cb => sub {
+						App::MtAws::FileListDeleteJob->new(archives => [{
+							archive_id => $self->{archive_id}, relfilename => $self->{relfilename}
+						}])
+					})
+				:
+					()
+			));
 		}
 	} else {
 		die;
 	}
 }
-	
 1;

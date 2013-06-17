@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = "0.962beta";
+our $VERSION = "0.962_2beta";
 
 use constant ONE_MB => 1024*1024;
 
@@ -116,37 +116,12 @@ sub process
 	if ($action eq 'sync') {
 		die "Not a directory $options->{dir}" unless -d binaryfilename $options->{dir};
 		
-		my $partsize = delete $options->{partsize};
-		
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{journal}, root_dir => $options->{dir},
 			filter => $options->{filters}{parsed}, leaf_optimization => $options->{'leaf-optimization'});
-		
-		with_forks !$options->{'dry-run'}, $options, sub {
-			$j->read_journal(should_exist => 0);
-			$j->read_new_files($options->{'max-number-of-files'});
-			
-			if ($options->{'dry-run'}) {
-				for (@{ $j->{newfiles_a} }) {
-					my ($absfilename, $relfilename) = ($j->absfilename($_->{relfilename}), $_->{relfilename});
-					print "Will UPLOAD $absfilename\n";
-				}
-			} else {
-				$j->open_for_write();
-				
-				my @joblist;
-				for (@{ $j->{newfiles_a} }) {
-					my ($absfilename, $relfilename) = ($j->absfilename($_->{relfilename}), $_->{relfilename});
-					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::FileCreateJob->new(filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$partsize));
-					push @joblist, $ft;
-				}
-				if (scalar @joblist) {
-					my $lt = App::MtAws::JobListProxy->new(jobs => \@joblist);
-					my ($R) = fork_engine->{parent_worker}->process_task($lt, $j);
-					die unless $R;
-				}
-				$j->close_for_write();
-			}
-		}
+
+		require App::MtAws::SyncCommand;
+		App::MtAws::SyncCommand::run($options, $j);
+
 	} elsif ($action eq 'upload-file') {
 		
 		defined(my $relfilename = $options->{relfilename})||confess;
@@ -192,15 +167,15 @@ END
 		with_forks !$options->{'dry-run'}, $options, sub {
 			$j->read_journal(should_exist => 1);
 			
-			my $files = $j->{journal_h};
-			if (scalar keys %$files) {
+			my $archives = $j->{archive_h};
+			if (scalar keys %$archives) {
 				if ($options->{'dry-run'}) {
-						for (keys %$files) {
-							print "Will DELETE archive $files->{$_}{archive_id} (filename $_)\n"
+						for (keys %$archives) {
+							print "Will DELETE archive $_ (filename $archives->{$_}{relfilename})\n"
 						}
 				} else {
 					$j->open_for_write();
-					my @filelist = map { {archive_id => $files->{$_}->{archive_id}, relfilename =>$_ } } keys %{$files};
+					my @filelist = map { {archive_id => $_, relfilename =>$archives->{$_}->{relfilename} } } keys %{$archives};
 					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::FileListDeleteJob->new(archives => \@filelist ));
 					my ($R) = fork_engine->{parent_worker}->process_task($ft, $j);
 					die unless $R;
@@ -227,16 +202,17 @@ END
 			my %filelist =	map { $_->{archive_id} => $_ }
 				grep { ! binaryfilename -f $_->{filename} }
 				map {
+					my $entry = $j->latest($_);
 					{
-						archive_id => $files->{$_}->{archive_id}, mtime => $files->{$_}{mtime}, size => $files->{$_}{size},
-						treehash => $files->{$_}{treehash}, relfilename =>$_, filename=> $j->absfilename($_)
+						archive_id => $entry->{archive_id}, mtime => $entry->{mtime}, size => $entry->{size},
+						treehash => $entry->{treehash}, relfilename =>$_, filename=> $j->absfilename($_)
 					}
 				}
 				keys %{$files};
 			if (keys %filelist) {
 				if ($options->{'dry-run'}) {
-					for (values %filelist) {
-						print "Will DOWNLOAD (if available) archive $_->{archive_id} (filename $_->{relfilename})\n"
+					for (keys %filelist) {
+						print "Will DOWNLOAD (if available) archive $_->{archive_id} (filename $_->{relfilename})\n" for ($j->latest($_));
 					}
 				} else {
 					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::RetrievalFetchJob->new(file_downloads => $options->{file_downloads}, archives => \%filelist ));
@@ -261,45 +237,8 @@ END
 	} elsif ($action eq 'download-inventory') {
 		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{'new-journal'});
-				
-		with_forks 1, $options, sub {
-			
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::InventoryFetchJob->new());
-			my ($R, $attachmentref) = fork_engine->{parent_worker}->process_task($ft, undef);
-			# here we can have response from both JobList or Inventory output..
-			# JobList looks like 'response' => '{"JobList":[],"Marker":null}'
-			# Inventory retriebal has key 'ArchiveList'
-			# TODO: implement it more clear way on level of Job/Tasks object
-			
-			croak if -s binaryfilename $options->{'new-journal'}; # TODO: fix race condition between this and opening file
-			
-			if ($R && $attachmentref) {
-				$j->open_for_write();
-	
-				my $data = JSON::XS->new->allow_nonref->utf8->decode($$attachmentref);
-				my $now = time();
-				
-				for my $item (@{$data->{'ArchiveList'}}) {
-					
-					my ($relfilename, $mtime) = App::MtAws::MetaData::meta_decode($item->{ArchiveDescription});
-					$relfilename = $item->{ArchiveId} unless defined $relfilename;
-					$mtime = $now unless defined $mtime;
-					
-					my $creation_time = App::MtAws::MetaData::_parse_iso8601($item->{CreationDate}); # TODO: move code out
-					#time archive_id size mtime treehash relfilename
-					$j->add_entry({
-						type => 'CREATED',
-						relfilename => $relfilename,
-						time => $creation_time,
-						archive_id => $item->{ArchiveId},
-						size => $item->{Size},
-						mtime => $mtime,
-						treehash => $item->{SHA256TreeHash},
-					});
-				}
-				$j->close_for_write();
-			}
-		}
+		require App::MtAws::DownloadInventoryCommand;
+		App::MtAws::DownloadInventoryCommand::run($options, $j);
 	} elsif ($action eq 'create-vault') {
 		$options->{concurrency} = 1;
 				
@@ -318,6 +257,7 @@ END
 		
 		# we load here all dynamically loaded modules, to check that installation is correct.
 		require App::MtAws::CheckLocalHashCommand;
+		require App::MtAws::DownloadInventoryCommand;
 		require App::MtAws::RetrieveCommand;
 		
 		print <<"END";

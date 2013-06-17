@@ -41,6 +41,8 @@ use MIME::Base64 3.11;
 use Digest::SHA ();
 # /build requirements
 
+my $testplan = 50;
+
 my $harness = TAP::Harness->new({
     formatter_class => 'TAP::Formatter::Console',
     ($ARGV[0] && $ARGV[0] eq 'cover') ? (switches	=> '-MDevel::Cover') : (exec => [$Config{'perlpath'}]),
@@ -53,6 +55,8 @@ my $harness = TAP::Harness->new({
 
 my $priotity = qr!integration/t_treehash\.t!;
 my @all = (glob("$FindBin::RealBin/t/unit/*.t"), glob("$FindBin::RealBin/t/integration/*.t"));
+
+die "We have ".scalar @all." tests, instead of $testplan" unless @all == $testplan;
 
 my @first = grep { $_ =~ $priotity } @all;
 my @others = grep { $_ !~ $priotity } @all;

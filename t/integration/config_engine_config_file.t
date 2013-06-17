@@ -30,6 +30,7 @@ use File::Path;
 use TestUtils;
 use File::Temp ();
 
+
 warning_fatal();
 
 my $TEMP = File::Temp->newdir();
@@ -68,7 +69,8 @@ my $line = "purge-vault --key=k --secret=s --region=myregion --config=$file --to
 	}
 }
 
-{
+SKIP: {
+	skip "Cannot run under root", 2 unless $>;
 	rmtree($file);
 	open F, ">", $file;
 	print F " ";

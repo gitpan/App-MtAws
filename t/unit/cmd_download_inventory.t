@@ -23,7 +23,7 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 5;
+use Test::More tests => 4;
 use Test::Deep;
 use FindBin;
 use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
@@ -31,13 +31,18 @@ use App::MtAws::Journal;
 use File::Path;
 use POSIX;
 use TestUtils;
+use POSIX;
+use Time::Local;
+use Carp;
+use App::MtAws::MetaData;
+use App::MtAws::DownloadInventoryCommand;
 use File::Temp ();
 
 warning_fatal();
 
 my $TEMP = File::Temp->newdir();
 my $mtroot = $TEMP->dirname();
-my $localroot = "$mtroot/cmd_check_local_hash";
+my $localroot = "$mtroot/download_inventory";
 my $journal = "$localroot/journal";
 my $rootdir = "$localroot/root";
 mkpath($localroot);
@@ -55,62 +60,69 @@ my $data = 	{
 };
 
 
+my $now = time();
 {
+	# 3rd party archive
+	assert_entry(
+	{
+		ArchiveId => $data->{archive_id},
+		ArchiveDescription => 'mtglacier archive',
+		CreationDate => strftime("%Y%m%dT%H%M%SZ", gmtime($now)),
+		Size => $data->{size},
+		SHA256TreeHash => $data->{treehash},
+	},
+	{
+		time => $now,
+		type => 'CREATED',
+		treehash => $data->{treehash},
+		mtime => undef,
+		archive_id => $data->{archive_id},
+		relfilename => $data->{archive_id},
+		size => $data->{size},
+	}
+	);
+	# authentic archive
+	assert_entry(
+	{
+		ArchiveId => $data->{archive_id},
+		ArchiveDescription => App::MtAws::MetaData::meta_encode($data->{relfilename}, $now - 111),
+		CreationDate => strftime("%Y%m%dT%H%M%SZ", gmtime($now)),
+		Size => $data->{size},
+		SHA256TreeHash => $data->{treehash},
+	},
+	{
+		time => $now,
+		type => 'CREATED',
+		treehash => $data->{treehash},
+		mtime => $now - 111,
+		archive_id => $data->{archive_id},
+		relfilename => $data->{relfilename},
+		size => $data->{size},
+	}
+	);
+}
+
+sub assert_entry
+{
+	my ($inp, $out) = @_;
 	unlink $journal;
+	my $jdata = {
+		"VaultARN" => "arn:aws:glacier:us-east-1:123456:vaults/test",
+		"InventoryDate" => strftime("%Y%m%dT%H%M%SZ", gmtime(time)),
+		"ArchiveList" => [],
+	};
+	my $archive_list = $jdata->{"ArchiveList"};
+	push @$archive_list, $inp;
+	my $json = JSON::XS->new->allow_nonref->ascii->pretty->encode($jdata);
 	my $J = App::MtAws::Journal->new(journal_file=> $journal, root_dir => $rootdir);
-	$J->open_for_write();
-	$J->add_entry({ type=> 'CREATED', time => $data->{time}, mtime => $data->{mtime}, archive_id => $data->{archive_id},
-		size => $data->{size}, treehash => $data->{treehash}, relfilename => $data->{relfilename} });
+	no warnings 'redefine';
+	local *App::MtAws::Journal::add_entry = sub {
+		my (undef, $e) = @_;
+		ok cmp_deeply $e, $out;
+	};
+	App::MtAws::DownloadInventoryCommand::parse_and_write_journal($J, \$json);
 }
 
-SKIP: {
-	skip "Cannot run under root", 5 unless $>;
-	my $file = "$rootdir/def/abc";
-	mkpath "$rootdir/def";
-	chmod 0744, $file;
-	open F, '>', $file or die $!;
-	print F "hello!\n";
-	close F;
-	chmod 0000, $file;
-	
-	my $options = {
-		region => 'reg',
-		journal => $journal,
-		dir => $rootdir,
-		journal_encoding => 'UTF-8',
-		filenames_encoding => 'UTF-8',
-	};
-	
-	my $j = App::MtAws::Journal->new(journal_encoding => $options->{'journal-encoding'},
-		filenames_encoding => $options->{'filenames-encoding'},
-		journal_file => $options->{journal},
-		root_dir => $options->{dir},
-		filter => $options->{filters}{parsed});
-	require App::MtAws::CheckLocalHashCommand;
-	
-	my $out='';
-	ok ! defined capture_stdout $out, sub {
-		eval {
-			App::MtAws::CheckLocalHashCommand::run($options, $j);
-			1;
-		};
-	};
-	my $err = $@;
-	
-	cmp_deeply $err, superhashof { code => 'check_local_hash_errors',
-		message => "check-local-hash reported errors"};
-		
-	ok $out =~ m!CANNOT OPEN file def/abc!;
-	ok $out =~ m!1 ERRORS!;
-	ok index($out, strerror(EACCES)) != -1;
-	# TODO: check also that 'next' is called!
-	
-	chmod 0744, $file;
-	unlink $file;
-1;
-	
-}
-
-
+unlink $journal;
 1;
 

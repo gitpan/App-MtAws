@@ -18,7 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::JobListProxy;
+package App::MtAws::JobIteratorProxy;
 
 use strict;
 use warnings;
@@ -30,20 +30,13 @@ sub new
 {
     my ($class, %args) = @_;
     my $self = \%args;
-    $self->{jobs}||die;
+    $self->{iterator}||die;
     
     $self->{jobs_h} = {};
     $self->{jobs_a} = [];
-    my $i = 1;
-    for my $job (@{$self->{jobs}}) {
-    	push @{$self->{jobs_a}}, { jobid => $i, job => $job };
-    	$self->{jobs_h}->{$i} = $job;
-    	++$i;
-    }
-    
+  
     $self->{pending}={};
-    $self->{uid}=0;
-    $self->{all_raised} = 0;
+    $self->{task_autoincrement} = $self->{job_autoincrement} = $self->{iterator_end_of_data} =0;
     bless $self, $class;
     return $self;
 }
@@ -52,7 +45,8 @@ sub new
 sub get_task
 {
 	my ($self) = @_;
-	if (scalar @{$self->{jobs_a}}) {
+
+	while (1) {
 		my $maxcnt = $self->{maxcnt}||30;
 		for my $job (@{$self->{jobs_a}}) {
 			my ($status, $task) = $job->{job}->get_task();
@@ -63,21 +57,27 @@ sub get_task
 					return ('wait') unless --$maxcnt;
 				}
 			} elsif ($status eq 'done') {
-				my ($s, $t) = $self->do_finish($job->{jobid});
-				if ($s eq 'ok') {
-					redo; # TODO: can optimize here..
-				} else {
-					return ($s, $t); # if done
-				}
+				$self->do_finish($job->{jobid});
+				redo; # TODO: can optimize here..
 			} else {
-				my $newtask = App::MtAws::ProxyTask->new(id => ++$self->{uid}, jobid => $job->{jobid}, task => $task);
+				my $newtask = App::MtAws::ProxyTask->new(id => ++$self->{task_autoincrement}, jobid => $job->{jobid}, task => $task);
 				$self->{pending}->{$newtask->{id}} = $newtask;
 				return ($status, $newtask);
 			}
 		}
-		return ('wait');
-	} else {
-		die;
+		my $next_job = $self->{iterator}->();
+		if ($next_job) {
+			my $i = ++$self->{job_autoincrement};
+			$self->{jobs_h}->{$i} = $next_job;
+			push @{$self->{jobs_a}}, { jobid => $i, job => $next_job };
+			next;
+		} else {
+			if (@{$self->{jobs_a}}) {
+				return ('wait');
+			} else {
+				return ('done');
+			}
+		}
 	}
 }
 
@@ -94,10 +94,10 @@ sub finish_task
 	delete $self->{pending}->{$id};
 	
 	if ($status eq 'ok'){
-		return ("ok");
 	} elsif ($status eq 'done') {
-		return $self->do_finish($jobid);
+		$self->do_finish($jobid);
 	}
+	return ("ok");
 }
 
 sub do_finish
@@ -112,11 +112,7 @@ sub do_finish
 		}
 		++$idx;
 	}
-	if (scalar @{$self->{jobs_a}}) {
-		return 'ok';
-	} else {
-		return 'done';
-	}
+	return 'ok';
 }
 
 1;
