@@ -9,7 +9,7 @@ build_requires:
   TAP::Harness: 0
   Test::Deep: 0
   Test::MockModule: 0
-  Test::Spec: 0
+  Test::Spec: 0.46
   Time::HiRes: 0
   URI: 0
   open: 0
@@ -28,7 +28,7 @@ no_index:
 provides:
   App::MtAws:
     file: lib/App/MtAws.pm
-    version: 0.962_2
+    version: 0.962_3
   App::MtAws::CheckLocalHashCommand:
     file: lib/App/MtAws/CheckLocalHashCommand.pm
   App::MtAws::ChildWorker:
@@ -153,4 +153,4 @@ resources:
   homepage: http://mt-aws.com/
   license: http://www.gnu.org/licenses/gpl-3.0.txt
   repository: https://github.com/vsespb/mt-aws-glacier
-version: 0.962_2
+version: 0.962_3
