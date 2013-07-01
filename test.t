@@ -36,19 +36,17 @@ use LWP::UserAgent ();
 use DateTime ();
 use Test::Spec ();
 use LWP::Protocol::https ();
-use MIME::Base64 3.11;
+use MIME::Base64;
 # for 5.8.x stock perl
 use Digest::SHA ();
 # /build requirements
 
-my $testplan = 50;
+my $testplan = 51;
 
 my $harness = TAP::Harness->new({
     formatter_class => 'TAP::Formatter::Console',
     ($ARGV[0] && $ARGV[0] eq 'cover') ? (switches	=> '-MDevel::Cover') : (exec => [$Config{'perlpath'}]),
     merge           => 1,
-   #verbosity       => 1,
-    normalize       => 1,
     color           => 1,
     jobs			=> 8,
 });
@@ -61,4 +59,4 @@ die "We have ".scalar @all." tests, instead of $testplan" unless @all == $testpl
 my @first = grep { $_ =~ $priotity } @all;
 my @others = grep { $_ !~ $priotity } @all;
 die unless scalar @first + scalar @others == scalar @all;
-$harness->runtests(@first, @others);
+die unless $harness->runtests(@first, @others)->get_status eq 'PASS';
