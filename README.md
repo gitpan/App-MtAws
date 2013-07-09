@@ -5,7 +5,7 @@ Perl Multithreaded multipart sync to Amazon Glacier service.
 ## Intro
 
 Amazon Glacier is an archive/backup service with very low storage price. However with some caveats in usage and archive retrieval prices.
-[Read more about Amazon Glacier][amazon glacier] 
+[Read more about Amazon Glacier][amazon glacier]
 
 mt-aws-glacier is a client application for Glacier.
 
@@ -32,33 +32,19 @@ mt-aws-glacier is a client application for Glacier.
 * File selection options for all commands (using flexible rules with wildcard support)
 * File name and modification times are stored as Glacier metadata ([metadata format for developers][mt-aws-glacier Amazon Glacier meta-data format specification])
 * Ability to re-create journal file from Amazon Glacier metadata
-* Full UTF-8 support (and full single-byte encoding support for *BSD systems) 
+* Full UTF-8 support (and full single-byte encoding support for *BSD systems)
 * Multipart/multithreaded upload from STDIN
 * User selectable HTTPS support. Currently defaults to plaintext HTTP
 * Vault creation and deletion
 * STS/IAM security tokens support
 
-## Coming-soon features
-
-* Checking integrity of remote files
-* Some integration with external world, ability to read SNS topics
-* Simplified distribution for Debian/RedHat
-* Split code to re-usable modules, publishing on CPAN (Currently there are great existing Glacier modules on CPAN - see [Net::Amazon::Glacier][Amazon Glacier API CPAN module - Net::Amazon::Glacier] by *Tim Nordenfur*) 
-
-
-[Amazon Glacier API CPAN module - Net::Amazon::Glacier]:https://metacpan.org/module/Net::Amazon::Glacier 
+[Amazon Glacier API CPAN module - Net::Amazon::Glacier]:https://metacpan.org/module/Net::Amazon::Glacier
 [mt-aws-glacier Amazon Glacier meta-data format specification]:https://github.com/vsespb/mt-aws-glacier/blob/master/lib/App/MtAws/MetaData.pm
 
-## Planned next version features
+## Important bugs/missing features
 
-* Amazon S3 support
-
-## Important bugs/missed features
-
-* Zero length files are ignored (as Amazon Glacier does not support it)
 * Only multipart upload implemented, no plain upload
 * Mac OS X filesystem treated as case-sensitive
-* `sync` only uploads new files to Amazon Glacier (synchronization of modified/deleted files will be implemented soon)
 
 ## Production readiness
 
@@ -67,7 +53,7 @@ mt-aws-glacier is a client application for Glacier.
 ## Installation/System requirements
 
 Script is made for Linux OS. Tested under Ubuntu and Debian. Should work under other Linux distributions. Lightly tested under Mac OS X.
-Should NOT work under Windows. Minimum Perl version required is 5.8.8 (pretty old, AFAIK there are no supported distributions with older Perls) 
+Should NOT work under Windows. Minimum Perl version required is 5.8.8 (pretty old, AFAIK there are no supported distributions with older Perls)
 
 * Install the following CPAN modules:
 
@@ -92,7 +78,10 @@ Should NOT work under Windows. Minimum Perl version required is 5.8.8 (pretty ol
 * When playing with Glacier make sure you will be able to delete all your archives, it's impossible to delete archive
 or non-empty vault in amazon console now. Also make sure you have read _all_ Amazon Glacier pricing/faq.
 
-* Read their pricing [FAQ][Amazon Glacier faq] again, really. Beware of retrieval fee.
+* Read Amazon Glacier pricing [FAQ][Amazon Glacier faq] again, really. Beware of retrieval fee.
+
+* Before using this program, you should read Amazon Glacier documentation and understand, in general, Amazon Glacier workflows and entities. This documentation
+does not define any new layer of abstraction over Amazon Glacier entities.
 
 * With low "partsize" option you pay a bit more (Amazon charges for each upload request)
 
@@ -107,13 +96,21 @@ or non-empty vault in amazon console now. Also make sure you have read _all_ Ama
 * Please read [ChangeLog][mt-aws glacier changelog] when upgrading to new version, and especially when downgrading.
 (See "Compatibility" sections when downgrading)
 
+* Zero length files and empty directories are ignored (as Amazon Glacier does not support it)
+
 * See other [limitations](#limitations)
 
 [Amazon Glacier faq]:http://aws.amazon.com/glacier/faqs/#How_will_I_be_charged_when_retrieving_large_amounts_of_data_from_Amazon_Glacier
 [mt-aws glacier changelog]:https://github.com/vsespb/mt-aws-glacier/blob/master/ChangeLog
 
+## Help/contribute this project
+
+* If you like mt-aws-glacier, and registered on GitHub, please **Star** it on GitHUb, this way you'll help promote the project.
+* Please report any bugs or issues (using GitHub issues). Well, any feedback is welcomed.
+* If you want to contribute to the source code, please contact me first and describe what you want to do
+
 ## Usage
- 
+
 1. Create a directory containing files to backup. Example `/data/backup`
 2. Create config file, say, glacier.cfg
 
@@ -140,7 +137,7 @@ or non-empty vault in amazon console now. Also make sure you have read _all_ Ama
 7. Check that your local files not modified since last sync
 
 		./mtglacier check-local-hash --config=glacier.cfg --dir /data/backup --vault=myvault -journal=journal.log
-    
+
 8. Delete some files from your backup location
 9. Initiate archive restore job on Amazon side
 
@@ -154,10 +151,10 @@ or non-empty vault in amazon console now. Also make sure you have read _all_ Ama
 12. Delete all your files from vault
 
 		./mtglacier purge-vault --config=glacier.cfg --dir /data/backup --vault=myvault --journal=journal.log
-		
+
 13. Wait ~ 24-48 hours and you can try deleting your vault
 
-		./mtglacier delete-vault myvault --config=glacier.cfg 
+		./mtglacier delete-vault myvault --config=glacier.cfg
 
 	(note: currently Amazon Glacier does not return error if vault is not exists)
 
@@ -303,6 +300,61 @@ It's possible that in the future `mtglacier` will support some other metadata th
 
 ## Specification for some commands
 
+### `sync`
+
+Propagates current local filesystem state to Amazon Glacier server.
+
+`sync` accepts one or several of the following mode options: `--new`, `--replace-modified`, `--delete-removed`
+
+If none of three above mode options provided, `--new` is implied (basically for backward compatibility).
+
+1. `--new`
+
+	Uploads files, which exist in local filesystem (and have non-zero size), but not exist in Amazon Glacier (i.e. in Journal)
+
+2. `--replace-modified`
+
+	Uploads modified files (i.e. which exist in local filesystem and in Amazon Glacier). After file gets successfully uploaded,
+	previous version of file is deleted. Logic of detection of modified files controlled by `--detect` option.
+
+3. `--delete-removed`
+
+	Deletes files, which exist in Amazon Glacier, but missing in local filesystem (or have zero size) , from Amazon Glacier.
+
+4. `--detect`
+
+	Controls how `--replace-modified` detect modified files. Possible values are: `treehash`, `mtime`,  `mtime-and-treehash`, `mtime-or-treehash`.
+	Default value is `mtime-and-treehash`
+
+	File is always considered modified if its size changed (but not zero)
+
+		1. `treehash` - calculates TreeHash checksum for file and compares with one in Journal. If checksum does not match - file is modified.
+
+		2. `mtime` - compares file last modification time in local filesystem and in journal, if it differs - file is modified.
+
+		3. `mtime-or-treehash` - compares file last modification time, if it differs - file is modified. If it matches - compares TreeHash.
+
+		4. `mtime-and-treehash` - compares file last modification time, if it differs - compares TreeHash. If modification time is not changed, file
+		treated as not-modified, treehash not checked.
+
+	NOTE: default mode for detect is `mtime-and-treehash`, it's more performance wise (treehash checked only for files with modification time changed),
+	but `mtime-or-treehash` and `treehash` are more safe in case you're not sure which programs change your files and how.
+
+	NOTE: `mtime-or-treehash` is mnemonic for *File is modified if mtime differs OR treehash differs*
+	`mtime-and-treehash`  is mnemonic for  *File is modified if mtime differs AND treehash differs*
+
+	*AND* and *OR* means here logical operators with [short-circuit evaluation](http://en.wikipedia.org/wiki/Short-circuit_evaluation)
+	i.e. with `mtime-and-treehash` treehash never checked if mtime not differs. And with `mtime-or-treehash` treehash never checked if mtime differs.
+
+NOTE: files with zero sizes are not supported by Amazon Glacier API, thus considered non-existing for consistency, for all `sync` modes.
+
+NOTE: `sync` does not upload empty directories, there is no such thing as directory in Amazon Glacier.
+
+NOTE: With `--dry-run` option TreeHash will not be calculated, instead *Will VERIFY treehash and upload...* message will be displayed.
+
+NOTE: TreeHash calculation performed in parallel, so some of workers (defined with `--concurrency`) might be busy calculating treehash instead
+of network IO.
+
 ### `restore`
 
 Initiate Amazon Glacier RETRIEVE oparation for files listed in Journal, which don't *exist* on local filesystem and for
@@ -325,7 +377,7 @@ download for this file performed in multiple segments, i.e. using HTTP `Range:` 
 which can be smaller). Segments are downloaded in parallel (and different segments from different files can
 be downloaded at same time).
 
-Only values that are power of two supported for `segment-size` now. 
+Only values that are power of two supported for `segment-size` now.
 
 Currenly if download breaks due to network problem, no resumption is performed, download of file or of current segment
 started from beginning.
@@ -334,7 +386,7 @@ In case multi-segment downloads, TreeHash reported by Amazon Glacier for each se
 In case of mismatch error is thrown and process stopped. Final TreeHash for whole file not checked yet.
 
 In case full-file downloads, TreeHash reported by Amazon Glacier for whole file is compared with one calculated runtime and with one found in Journal file,
-in case of mismatch, error is thrown and process stopped. 
+in case of mismatch, error is thrown and process stopped.
 
 Unlike `partsize` option, `segment-size` does not allocate buffers in memory of the size specified, so you can use large `segment-size`.
 
@@ -345,47 +397,47 @@ Uploads a single file into Amazon Glacier. File will be tracked with Journal (ju
 There are several possible combinations of options for `upload-file`:
 
 1. **--filename** and **--dir**
-	
+
 	_Uploads what_: a file, pointed by `filename`.
-	
+
 	_Filename in Journal and Amazon Glacier metadata_: A relative path from `dir` to `filename`
 
 		./mtglacier upload-file --config=glacier.cfg --vault=myvault --journal=journal.log --dir /data/backup --filename=/data/backup/dir1/myfile
-		
+
 	(this will upload content of `/data/backup/dir1/myfile` to Amazon Glacier and use `dir1/myfile` as filename for Journal )
 
 		./mtglacier upload-file --config=glacier.cfg --vault=myvault --journal=journal.log --dir data/backup --filename=data/backup/dir1/myfile
-		
+
 	(Let's assume current directory is `/home`. Then this will upload content of `/home/data/backup/dir1/myfile` to Amazon Glacier and use `dir1/myfile` as filename for Journal)
-	
+
 	(NOTE: file `filename` should be inside directory `dir`)
 
 2. **--filename** and  **--set-rel-filename**
-	
+
 	_Uploads what_: a file, pointed by `filename`.
-	
+
 	_Filename in Journal and Amazon Glacier metadata_: As specified in `set-rel-filename`
 
 		./mtglacier upload-file --config=glacier.cfg --vault=myvault --journal=journal.log --filename=/tmp/myfile --set-rel-filename a/b/c
-		
+
 	(this will upload content of `/tmp/myfile` to Amazon Glacier and use `a/b/c` as filename for Journal )
 
 	(NOTE: `set-rel-filename` should be a _relative_ filename i.e. must not start with `/`)
 
 3. **--stdin**, **--set-rel-filename** and **--check-max-file-size**
-	
+
 	_Uploads what_: a file, read from STDIN
-	
+
 	_Filename in Journal and Amazon Glacier metadata_: As specified in `set-rel-filename`
 
 	Also, as file size is not known until the very end of upload, need to be sure that file will not exceed 10 000 parts limit, and you must
 	specify `check-max-file-size` -- maximum possible size of file (in Megabytes), that you can expect. What this option do is simply throw error
 	if `check-max-file-size`/`partsize` > 10 000 parts (in that case it's recommended to adjust `partsize`). That's all. I remind that you can put this (and
 	any other option to config file)
-	
-	
+
+
 		./mtglacier upload-file --config=glacier.cfg --vault=myvault --journal=journal.log --stdin --set-rel-filename path/to/file --check-max-file-size=131
-		
+
 	(this will upload content of file read from STDIN to Amazon Glacier and use `path/to/file` as filename for Journal. )
 
 	(NOTE: `set-rel-filename` should be a _relative_ filename i.e. must not start with `/`)
@@ -407,7 +459,7 @@ Can be used with commands: `sync`, `purge-vault`, `restore`, `restore-completed 
 
 	Adds one or several RULES to the list of rules. One filter value can contain multiple rules, it has same effect as multiple filter values with one
 	RULE each.
-	
+
 		--filter='RULE1 RULE2' --filter 'RULE3'
 
 	is same as
@@ -424,7 +476,7 @@ Can be used with commands: `sync`, `purge-vault`, `restore`, `restore-completed 
 
 
 	NOTES:
-	
+
 		1. If RULES contain spaces or wildcards, you must quote it when running `mtglacier` from Shell (Example: `mtglacier ... --filter -tmp/` but `mtglacier --filter '-log/ -tmp/'`)
 
 
@@ -444,7 +496,7 @@ Can be used with commands: `sync`, `purge-vault`, `restore`, `restore-completed 
 + **--exclude**
 
 	Adds an EXCLUDE PATTERN to list of rules (Example: `--exclude /data/` - include everything except /data and subdirectories)
-	
+
 	NOTES:
 
 		1. You can use spaces in PATTERNS here (Example: `--exclude '/my documents/'` - include everything except "/my documents" and subdirectories)
@@ -495,7 +547,7 @@ Otherwise it is matched only against the final component of the filename.
 
 + 10) If PATTERN is started with '!' it only match when rest of pattern (i.e. without '!') does not match.
 
-		`mtglacier ... --filter '-!/data/ +*.gz' -` - include only `*.gz` files inside `data/` directory. 
+		`mtglacier ... --filter '-!/data/ +*.gz' -` - include only `*.gz` files inside `data/` directory.
 
 + **How rules are processed**
 
@@ -523,7 +575,7 @@ Currently it's guaranteed that traversal stop only in case when:
 
 + AND there are no INCLUDE rules before this EXCLUDE RULE
 
-		`--filter '-*.tmp -/media/ -/proc/ +*.jpeg'` - system '/proc' and huge '/media' directory is not traversed. 
+		`--filter '-*.tmp -/media/ -/proc/ +*.jpeg'` - system '/proc' and huge '/media' directory is not traversed.
 
 + 6) Non-ASCII characters in PATTERNS are supported.
 
@@ -553,7 +605,7 @@ NOTE: Any command line option can be used in config file as well.
 
 5. `key/secret/region/vault/protocol` - you can override any option from config
 
-6. `dry-run` (with `sync`, `purge-vault`, `restore`, `restore-completed ` and even `check-local-hash` commands) - do not perform actual work, print what will happen instead. 
+6. `dry-run` (with `sync`, `purge-vault`, `restore`, `restore-completed ` and even `check-local-hash` commands) - do not perform actual work, print what will happen instead.
 
 		--dry-run
 
@@ -561,7 +613,7 @@ NOTE: Any command line option can be used in config file as well.
 Similar to [find][find] (coreutils tools) `-noleaf` option and [File::Find][File::Find] `$dont_use_nlink` option.
 When disabled number of hardlinks to directory is ignored during file tree traversal. This slow down file search, but more
 compatible with (some) CIFS/CD-ROM filesystems.
-For more information see [find][find] and [File::Find][File::Find] manuals. 
+For more information see [find][find] and [File::Find][File::Find] manuals.
 
 7. `token` (all commands which connect Amazon Glacier API) - a STS/IAM security token, described in [Amazon STS/IAM Using Temporary Security Credentials to Access AWS]
 
@@ -586,7 +638,7 @@ Below 4 options, that can be used in config file and in command line.
 
 2. `filenames-encoding` - Encoding of filenames in filesystem.
 
-	Under most *nix filesystems filenames stored as byte sequences, not characters. So in theory application is responsible for managing encodings. 
+	Under most *nix filesystems filenames stored as byte sequences, not characters. So in theory application is responsible for managing encodings.
 
 3. `config-encoding` - Encoding of your config file (`glacier.cfg` in examples above)
 
@@ -610,7 +662,7 @@ Notes:
 * To get list of encodings installed with your Perl run:
 
 		perl -MEncode -e 'print join qq{\n}, Encode->encodings(q{:all})'
-		
+
 * Config file name (specified with `--config`) can be in any encoding (it's used as is) Of course it will work only if your terminal encoding match your
 filesystem encoding or if your config file name consists of ASCII-7bit characters only.
 
@@ -647,12 +699,6 @@ which are made of random bytes/garbage is not supported. usually it's not a prob
 		./cycletest.sh init MYDIR
 		./cycletest.sh purge MYDIR
 
-## Help/contribute this project
-
-* If you are using it and like it, please "Star" it on GitHUb, this way you'll help promote the project
-* Please report any bugs or issues (using GitHub issues). Well, any feedback is welcomed.
-* If you want to contribute to the source code, please contact me first and describe what you want to do
-
 ## Minimum Amazon Glacier permissions:
 
 Something like this (including permissions to create/delete vaults):
@@ -675,14 +721,14 @@ Something like this (including permissions to create/delete vaults):
 			  "glacier:ListJobs",
 			  "glacier:GetJobOutput",
 			  "glacier:ListMultipartUploads",
-			  "glacier:CompleteMultipartUpload"] 
+			  "glacier:CompleteMultipartUpload"]
 		},
 		{
 			"Effect": "Allow",
 			"Resource":["arn:aws:glacier:eu-west-1:*",
 			  "arn:aws:glacier:us-east-1:*"],
 			"Action":["glacier:CreateVault",
-			  "glacier:DeleteVault"] 
+			  "glacier:DeleteVault"]
 		}
 		]
 	}

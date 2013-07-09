@@ -23,7 +23,7 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 121;
+use Test::More tests => 125;
 use Test::Deep;
 use FindBin;
 use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
@@ -50,12 +50,12 @@ my $data = {
 		my $J = App::MtAws::Journal->new(journal_file=>'x', root_dir => $rootdir);
 		my $anotherfile = 'newfile1';
 		$J->{journal_h}->{$relfilename} = $data;
-		
+
 		is( $J->_can_read_filename_for_mode($relfilename, {new=>1, existing=>1}), 'existing');
 		is( $J->_can_read_filename_for_mode($relfilename, {existing=>1}), 'existing');
 		ok( ! $J->_can_read_filename_for_mode($relfilename, {new=>1}) );
 		ok( !$J->_can_read_filename_for_mode($relfilename, {}));
-		
+
 		is( $J->_can_read_filename_for_mode($anotherfile, {new=>1, existing=>1}), 'new');
 		is( $J->_can_read_filename_for_mode($anotherfile, {new=>1}), 'new');
 		ok( !$J->_can_read_filename_for_mode($anotherfile, {existing=>1}));
@@ -76,12 +76,12 @@ my $data = {
 				my ($args) = @_;
 				$args->{wanted}->() for (map { "$rootdir/$_" } @filelist);
 			});
-			
+
 		$File::Find::prune = 0;
 		$J->read_files({new=>1, existing=>1}, $maxfiles);
-		
-		my $expected = { missing => [], existing=>[], new => [map { { relfilename => File::Spec->abs2rel($_, $J->{root_dir}) } } map { "$rootdir/$_" }  @filelist[0..$maxfiles-1]]}; 
-		is_deeply($J->{listing}, $expected);
+
+		my $expected = { missing => [], existing=>[], new => [map { { relfilename => File::Spec->abs2rel($_, $J->{root_dir}) } } map { "$rootdir/$_" }  @filelist[0..$maxfiles-1]]};
+		cmp_deeply($J->{listing}, $expected);
 		ok($maxfiles < scalar @filelist - 1);
 		ok($File::Find::prune == 1);
 }
@@ -100,12 +100,12 @@ my $data = {
 				my ($args) = @_;
 				$args->{wanted}->() for (map { "$rootdir/$_" } @filelist);
 			});
-			
+
 		$File::Find::prune = 1;
 		$J->read_files({new=>1, existing=>1}, $maxfiles);
-		
-		my $expected = { missing => [], existing => [], new => [map { { relfilename => File::Spec->abs2rel($_, $J->{root_dir}) } } map { "$rootdir/$_" }  @filelist]}; 
-		is_deeply($J->{listing}, $expected);
+
+		my $expected = { missing => [], existing => [], new => [map { { relfilename => File::Spec->abs2rel($_, $J->{root_dir}) } } map { "$rootdir/$_" }  @filelist]};
+		cmp_deeply($J->{listing}, $expected);
 		ok($maxfiles >= scalar @filelist - 1);
 		ok($File::Find::prune == 0);
 }
@@ -123,12 +123,12 @@ my $data = {
 				my ($args) = @_;
 				$args->{wanted}->() for (map { "$rootdir/$_" } @filelist);
 			});
-			
+
 		$File::Find::prune = 1;
 		$J->read_files({new=>1, existing=>1}, 0);
-		
+
 		my $expected = { missing => [], existing => [], new => [map { { relfilename => File::Spec->abs2rel($_, $J->{root_dir}) } } map { "$rootdir/$_" }  @filelist] };
-		is_deeply($J->{listing}, $expected);
+		cmp_deeply($J->{listing}, $expected);
 		ok($File::Find::prune == 0);
 }
 
@@ -140,12 +140,12 @@ for my $missing_mode (qw/0 1/) {
 		my @existing = qw{file2 file3 file4};
 		my @missing = qw{fileA fileB fileC};
 		my @new = qw{file1 file5 file6 file7};
-		
+
 		$J->{journal_h} = { map { $_ => { relfilename => $_ } } (@existing, @missing) };
 		my $maxfiles = scalar @existing + (scalar @new) + $n;
 		my $n_or_files = min $n, scalar @missing;
 		$n_or_files = 0 unless $missing_mode;
-		
+
 		(my $mock_journal = Test::MockModule->new('App::MtAws::Journal'))->
 			mock('_is_file_exists', sub {  $_[1] =~ /file\d$/ });
 
@@ -154,24 +154,24 @@ for my $missing_mode (qw/0 1/) {
 				my ($args) = @_;
 				$args->{wanted}->() for (map { "$rootdir/$_" } (@new, @existing));
 			});
-			
+
 		$File::Find::prune = 0;
 		$J->read_files({new=>1, existing=>1, missing=>$missing_mode}, $maxfiles);
-		
+
 		my $expected = {
 			missing => [map { {relfilename => $_} } @missing[0..$n_or_files-1]],
 			existing=> [map { {relfilename => $_} } @existing],
-			new =>[map { {relfilename => $_} } @new], 
-		}; 
+			new =>[map { {relfilename => $_} } @new],
+		};
 		cmp_deeply($J->{listing}{new}, $expected->{new});
 		cmp_deeply($J->{listing}{existing}, $expected->{existing});
-		
+
 		is scalar @{$J->{listing}{missing}}, $n_or_files;
 		my %m = map { $_ => 1 } @missing;
 		for (@{$J->{listing}{missing}}) {
 			ok delete $m{$_->{relfilename}}, $_->{relfilename};
 		}
-		
+
 		ok($File::Find::prune == 0);
 	}
 }
@@ -183,9 +183,9 @@ for my $missing_mode (qw/0 1/) { for my $new_mode (qw/0 1/) { for my $existing_m
 	my @existing = qw{file2 file3 file4};
 	my @missing = qw{fileA fileB fileC};
 	my @new = qw{file1 file5 file6 file7};
-	
+
 	$J->{journal_h} = { map { $_ => { relfilename => $_ } } (@existing, @missing) };
-	
+
 	(my $mock_journal = Test::MockModule->new('App::MtAws::Journal'))->
 		mock('_is_file_exists', sub {  $_[1] =~ /file\d$/ });
 
@@ -194,19 +194,19 @@ for my $missing_mode (qw/0 1/) { for my $new_mode (qw/0 1/) { for my $existing_m
 			my ($args) = @_;
 			$args->{wanted}->() for (map { "$rootdir/$_" } (@new, @existing));
 		});
-		
+
 	$File::Find::prune = 0;
 	$J->read_files({new=>$new_mode, existing=>$existing_mode, missing=>$missing_mode});
-	
+
 	my $expected = {
 		missing => [$missing_mode ? map { {relfilename => $_} } @missing : ()],
 		existing=> [$existing_mode ? map { {relfilename => $_} } @existing : ()],
-		new =>[$new_mode ? map { {relfilename => $_} } @new : ()], 
-	}; 
+		new =>[$new_mode ? map { {relfilename => $_} } @new : ()],
+	};
 	cmp_deeply($J->{listing}{new}, $expected->{new});
 	cmp_deeply($J->{listing}{existing}, $expected->{existing});
 	cmp_deeply([sort map { $_->{relfilename} } @{$J->{listing}{missing}}], [sort map { $_->{relfilename} } @{$expected->{missing}}]);
-	
+
 	ok($File::Find::prune == 0);
 }}}
 
@@ -225,9 +225,49 @@ for my $missing_mode (qw/0 1/) { for my $new_mode (qw/0 1/) { for my $existing_m
 				my ($args) = @_;
 				$args->{wanted}->() for (@filelist);
 			});
-			
+
 		$J->read_files({new=>1, existing=>1}, 0);
-		is_deeply($J->{listing}, {new=>[],existing=>[],missing=>[]});
+		cmp_deeply($J->{listing}, {new=>[],existing=>[],missing=>[]});
+}
+
+# should list file as missing if it does not exist
+{
+		my $J = App::MtAws::Journal->new(journal_file=>'x', root_dir => $rootdir);
+
+		my @filelist = qw{root_dir/file1 root_dir/file2 root_dir/file3 root_dir/file4 root_dir/file5 root_dir/file6 root_dir/file7};
+		$J->{journal_h} = { map { $_ => { relfilename => $_ } } (@filelist) };
+		(my $mock_journal = Test::MockModule->new('App::MtAws::Journal'))->
+			mock('_is_file_exists', sub { return 0 });
+
+		(my $mock_find = Test::MockModule->new('File::Find'))->
+			mock('find', sub {
+				my ($args) = @_;
+				$args->{wanted}->() for (@filelist);
+			});
+
+		$J->read_files({new=>1, existing=>1, missing=>1}, 0);
+		cmp_deeply([sort map { $_->{relfilename} } @{$J->{listing}{missing}}], [sort @filelist]);
+}
+
+# should not list file as missing if it exists
+{
+		my $J = App::MtAws::Journal->new(journal_file=>'x', root_dir => $rootdir);
+
+		my @filelist = qw{root_dir/file1 root_dir/file2 root_dir/file3 root_dir/file4 root_dir/file5 root_dir/file6 root_dir/file7};
+		$J->{journal_h} = { map { $_ => { relfilename => $_ } } (@filelist) };
+		(my $mock_journal = Test::MockModule->new('App::MtAws::Journal'))->
+			mock('_is_file_exists', sub { return 1 });
+
+		(my $mock_find = Test::MockModule->new('File::Find'))->
+			mock('find', sub {
+				my ($args) = @_;
+				$args->{wanted}->() for (@filelist);
+			});
+
+		$J->read_files({new=>1, existing=>1, missing=>1}, 0);
+		ok eq_deeply($J->{listing}{existing}, []);
+		ok !eq_deeply($J->{listing}{new}, []);
+		cmp_deeply($J->{listing}{missing}, []);
 }
 
 # should catch broken UTF-8 in filename
@@ -237,13 +277,13 @@ for my $missing_mode (qw/0 1/) { for my $new_mode (qw/0 1/) { for my $existing_m
 		my $brokenname = "\xD1\xD2";
 		ok ! defined eval { decode("UTF-8", $brokenname, Encode::FB_CROAK|Encode::LEAVE_SRC) }, "our UTF example should be broken";
 		my @filelist = ($brokenname);
-		
+
 		(my $mock_find = Test::MockModule->new('File::Find'))->
 			mock('find', sub {
 				my ($args) = @_;
 				$args->{wanted}->() for (@filelist);
 			});
-		
+
 		ok ! defined eval { $J->read_files({new=>1, existing=>1}, 0); 1; };
 		is get_exception->{code}, 'invalid_octets_filename';
 		is get_exception->{filename}, hex_dump_string($brokenname);
@@ -256,13 +296,13 @@ for my $brokenname ("ab\tc", "some\nfile", "some\rfile") {
 		my $J = App::MtAws::Journal->new(journal_file=>'x', root_dir => $rootdir);
 
 		my @filelist = ($brokenname);
-		
+
 		(my $mock_find = Test::MockModule->new('File::Find'))->
 			mock('find', sub {
 				my ($args) = @_;
 				$args->{wanted}->() for (@filelist);
 			});
-		
+
 		ok ! defined eval { $J->read_files({new=>1, existing=>1}, 0); 1; };
 		is get_exception->{filename}, hex_dump_string($brokenname);
 		is get_exception->{code}, 'invalid_chars_filename';
@@ -277,15 +317,15 @@ for my $brokenname ("ab\tc", "some\nfile", "some\rfile") {
 		my $mock_journal = Test::MockModule->new('App::MtAws::Journal');
 		$mock_journal->mock('_is_file_exists', sub { return 1 });
 		$mock_journal->mock('_can_read_filename_for_mode', sub { return 0 });
-		
+
 		(my $mock_find = Test::MockModule->new('File::Find'))->
 			mock('find', sub {
 				my ($args) = @_;
 				$args->{wanted}->() for (@filelist);
 			});
-			
+
 		$J->read_files({new=>1, existing=>1}, 0);
-		is_deeply($J->{listing}, {new=>[],existing=>[], missing => []});
+		cmp_deeply($J->{listing}, {new=>[],existing=>[], missing => []});
 }
 
 # should pass correct options to find
@@ -295,14 +335,14 @@ for my $brokenname ("ab\tc", "some\nfile", "some\rfile") {
 		my @filelist = qw{file1 file2 file3 file4 file5 file6 file7};
 		my $mock_journal = Test::MockModule->new('App::MtAws::Journal');
 		$mock_journal->mock('_is_file_exists', sub { return 1 });
-		
+
 		my ($args, $root_dir);
 		(my $mock_find = Test::MockModule->new('File::Find'))->
 			mock('find', sub {
 				($args, $root_dir) = @_;
 				$args->{wanted}->() for (map { "$rootdir/$_" } @filelist);
 			});
-			
+
 		$J->read_files({new=>1, existing=>1}, 0);
 		ok($args->{no_chdir} == 1);
 		ok($root_dir eq $rootdir);

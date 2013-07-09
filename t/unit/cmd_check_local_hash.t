@@ -23,94 +23,382 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 5;
-use Test::Deep;
+
 use FindBin;
 use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
-use App::MtAws::Journal;
-use File::Path;
+
+use Carp;
 use POSIX;
+
+use Test::Spec 0.46;
+use Test::More tests => 228;
+use Test::Deep;
+
+use Data::Dumper;
 use TestUtils;
-use File::Temp ();
+
+use App::MtAws::Journal;
+
+sub _close { CORE::close($_[0]) };
+BEGIN { *CORE::GLOBAL::close = sub(;*) { _close($_[0]) }; };
+
+
+require App::MtAws::CheckLocalHashCommand;
+
 
 warning_fatal();
 
-my $TEMP = File::Temp->newdir();
-my $mtroot = $TEMP->dirname();
-my $localroot = "$mtroot/cmd_check_local_hash";
-my $journal = "$localroot/journal";
-my $rootdir = "$localroot/root";
-mkpath($localroot);
-mkpath($rootdir);
-
-
-my $data = 	{
-	archive_id => "HdGDbije6lWPT8Q8S3uOWJF6Ou9MWRlrfMGDr6TCrhXuDqJ1pzwKR6XV4l1IZ-VrDd2rlLxDFACqnuJouYTzsT5zd6s2ZEAHfRQFriVbjpFfJ1uWruHRRXIrFIma4PVuz-fp9_pBkA",
-	job_id => "HdGDbije6lWPT8Q8S3uOWJF6777MWRlrfMGDr688888888888zwKR6XV4l1IZ-VrDd2rlLxDFACqnuJouYTzsT5zd6s2ZEAHfRQFriVbjpFfJ1uWruHRRXIrFIma4PVuz-fp9_pBkA",
-	size => 7684356,
-	'time' => 1355666755,
-	mtime => 1355566755,
-	relfilename => 'def/abc',
-	treehash => '1368761bd826f76cae8b8a74b3aae210b476333484c2d612d061d52e36af631a',
-};
-
-
+sub parse_out
 {
-	unlink $journal;
-	my $J = App::MtAws::Journal->new(journal_file=> $journal, root_dir => $rootdir);
-	$J->open_for_write();
-	$J->add_entry({ type=> 'CREATED', time => $data->{time}, mtime => $data->{mtime}, archive_id => $data->{archive_id},
-		size => $data->{size}, treehash => $data->{treehash}, relfilename => $data->{relfilename} });
+	my %res;
+	for (shift) {
+		($res{ok}) = /^(\d) OK$/m and
+		($res{mtime}) = /^(\d) MODIFICATION TIME MISSMATCHES$/m and
+		($res{treehash}) = /^(\d) TREEHASH MISSMATCH$/m and
+		($res{size}) = /^(\d) SIZE MISSMATCH$/m and
+		($res{zero}) = /^(\d) ZERO SIZE$/m and
+		($res{missed}) = /^(\d) MISSED$/m and
+		($res{errors}) = /^(\d) ERRORS$/m or confess;
+	}
+	%res;
 }
 
-SKIP: {
-	skip "Cannot run under root", 5 unless $>;
-	my $file = "$rootdir/def/abc";
-	mkpath "$rootdir/def";
-	chmod 0744, $file;
-	open F, '>', $file or die $!;
-	print F "hello!\n";
-	close F;
-	chmod 0000, $file;
-	
-	my $options = {
-		region => 'reg',
-		journal => $journal,
-		dir => $rootdir,
-		journal_encoding => 'UTF-8',
-		filenames_encoding => 'UTF-8',
+describe "command" => sub {
+	my $j;
+	my $options;
+	my $file1 = {size => 123, treehash => 'zz123', mtime => 456, relfilename => 'file1'};
+
+	before each => sub {
+		$j = App::MtAws::Journal->new(journal_file => 'x', 'root_dir' => 'x' );
+		$options = {};
 	};
-	
-	my $j = App::MtAws::Journal->new(journal_encoding => $options->{'journal-encoding'},
-		filenames_encoding => $options->{'filenames-encoding'},
-		journal_file => $options->{journal},
-		root_dir => $options->{dir},
-		filter => $options->{filters}{parsed});
-	require App::MtAws::CheckLocalHashCommand;
-	
-	my $out='';
-	ok ! defined capture_stdout $out, sub {
-		eval {
-			App::MtAws::CheckLocalHashCommand::run($options, $j);
-			1;
+
+	describe "check_local_hash" => sub {
+
+		sub expect_read_journal
+		{
+			my ($j, @files) = @_;
+			$j->expects("read_journal")->with(should_exist => 1)->returns_ordered->once;
+			$j->{journal_h} = { map { $_->{relfilename} => $_} @files };
+		}
+
+		sub expect_file_exists
+		{
+			my ($filename, $res) = (@_, 1);
+			App::MtAws::CheckLocalHashCommand->expects("file_exists")->returns_ordered(sub {
+				like shift, qr/\Q$filename\E$/;
+				$res;
+			});
+		}
+
+		sub expect_file_size
+		{
+			my ($filename, $res) = @_;
+			App::MtAws::CheckLocalHashCommand->expects("file_size")->returns_ordered(sub {
+				like shift, qr/\Q$filename\E$/;
+				$res;
+			});
+		}
+
+		sub expect_file_mtime
+		{
+			my ($filename, $res) = @_;
+			App::MtAws::CheckLocalHashCommand->expects("file_mtime")->returns_ordered(sub {
+				like shift, qr/\Q$filename\E$/;
+				$res;
+			});
+		}
+
+		sub expect_open_file
+		{
+			my ($file, $filename, $res, $err) = @_;
+			App::MtAws::CheckLocalHashCommand->expects("open_file")->returns_ordered(sub {
+				$_[0] = $file;
+				my (undef, $fn, %o) = @_;
+				like $fn, qr/\Q$filename\E$/;
+				cmp_deeply { %o }, { mode => '<', binary => 1 };
+				$! = $err if ($err);
+				$res;
+			});
+		}
+
+		sub expect_treehash
+		{
+			my ($file, $res) = @_;
+			my $treehash_mock = bless {}, 'App::MtAws::TreeHash';
+			App::MtAws::TreeHash->expects("new")->returns_ordered($treehash_mock);
+			$treehash_mock->expects("eat_file")->returns_ordered(sub {
+				cmp_deeply [@_], [$treehash_mock, $file];
+			});
+			$treehash_mock->expects("calc_tree")->returns_ordered(0);
+			$treehash_mock->expects("get_final_hash")->returns_ordered($res);
+		}
+
+		sub run_command
+		{
+			my ($options, $j, $close_res) = (@_, 1);
+			my $res = capture_stdout my $out => sub {
+				no warnings 'redefine';
+				local *_close = sub { $close_res };
+				return eval { App::MtAws::CheckLocalHashCommand::run($options, $j); 1 };
+			};
+			return ($res, $out);
+		}
+
+		sub check_ok
+		{
+			my ($out, @failures) = @_;
+			my %results = parse_out($out);
+			is delete $results{$_}, 1, "$_=1" for (@failures);
+			is $results{$_}, 0, "$_=0" for (keys %results);
+		}
+
+		it "should work when everything matches" => sub {
+			ordered_test sub {
+				expect_read_journal $j, $file1;
+
+				expect_file_exists $file1->{relfilename};
+				expect_file_size $file1->{relfilename}, $file1->{size};
+				expect_file_mtime $file1->{relfilename}, $file1->{mtime};
+				expect_open_file my $fileobj = { mock => 1 }, $file1->{relfilename}, 1;
+				expect_treehash $fileobj, $file1->{treehash};
+
+				my ($res, $out) = run_command($options, $j);
+				ok $res;
+				like $out, qr/^OK file1 $file1->{size} $file1->{treehash}$/m;
+				check_ok($out, qw/ok/);
+			};
+		};
+		describe "latest()" => sub {
+			it "should work with latest file when everything matches" => sub {
+				ordered_test sub {
+					expect_read_journal $j;
+					$j->_add_filename({size => 1231, treehash => 'th001', mtime => 4000, relfilename => 'file1'});
+					$j->_add_filename(my $r = {size => 1232, treehash => 'th002', mtime => 4003, relfilename => 'file1'});
+					$j->_add_filename({size => 1233, treehash => 'th003', mtime => 4001, relfilename => 'file1'});
+					expect_file_exists $r->{relfilename};
+					expect_file_size $r->{relfilename}, $r->{size};
+					expect_file_mtime $r->{relfilename}, $r->{mtime};
+					expect_open_file my $fileobj = { mock => 1 }, $r->{relfilename}, 1;
+					expect_treehash $fileobj, $r->{treehash};
+
+					my ($res, $out) = run_command($options, $j);
+					ok $res;
+					like $out, qr/^OK file1 $r->{size} $r->{treehash}$/m;
+					check_ok($out, qw/ok/);
+				};
+			};
+			it "should work with latest file and call latest() when everything matches" => sub {
+				ordered_test sub {
+					expect_read_journal $j;
+					$j->_add_filename({size => 1231, treehash => 'th001', mtime => 4000, relfilename => 'file1'});
+					$j->_add_filename(my $r = {size => 1232, treehash => 'th002', mtime => 4003, relfilename => 'file1'});
+					$j->_add_filename({size => 1233, treehash => 'th003', mtime => 4001, relfilename => 'file1'});
+					App::MtAws::Journal->expects("latest")->with('file1')->returns_ordered($r)->once;
+					expect_file_exists $r->{relfilename};
+					expect_file_size $r->{relfilename}, $r->{size};
+					expect_file_mtime $r->{relfilename}, $r->{mtime};
+					expect_open_file my $fileobj = { mock => 1 }, $r->{relfilename}, 1;
+					expect_treehash $fileobj, $r->{treehash};
+
+					my ($res, $out) = run_command($options, $j);
+					ok $res;
+					like $out, qr/^OK file1 $r->{size} $r->{treehash}$/m;
+					check_ok($out, qw/ok/);
+				};
+			};
+		};
+		it "should work when treehash does not match" => sub {
+			ordered_test sub {
+				expect_read_journal $j, $file1;
+
+				expect_file_exists $file1->{relfilename};
+				expect_file_size $file1->{relfilename}, $file1->{size};
+				expect_file_mtime $file1->{relfilename}, $file1->{mtime};
+				expect_open_file my $fileobj = { mock => 1 }, $file1->{relfilename}, 1;
+				expect_treehash $fileobj, "not_a_treehash";
+
+				my ($res, $out) = run_command($options, $j);
+				ok !$res;
+				like $out, qr/^TREEHASH MISSMATCH file1$/m;
+				check_ok($out, qw/treehash/);
+			};
+		};
+		it "should work when mtime does not match" => sub {
+			ordered_test sub {
+				expect_read_journal $j, $file1;
+
+				expect_file_exists $file1->{relfilename};
+				expect_file_size $file1->{relfilename}, $file1->{size};
+				expect_file_mtime $file1->{relfilename}, $file1->{mtime}+1;
+				expect_open_file my $fileobj = { mock => 1 }, $file1->{relfilename}, 1;
+				expect_treehash $fileobj, $file1->{treehash};
+
+				my ($res, $out) = run_command($options, $j);
+				ok $res;
+				like $out, qr/^OK file1 $file1->{size} $file1->{treehash}$/m;
+				check_ok($out, qw/ok mtime/);
+			};
+		};
+		it "should work when size does not match" => sub {
+			ordered_test sub {
+				expect_read_journal $j, $file1;
+
+				expect_file_exists $file1->{relfilename};
+				expect_file_size $file1->{relfilename}, $file1->{size}+1;
+				expect_file_mtime $file1->{relfilename}, $file1->{mtime};
+				App::MtAws::CheckLocalHashCommand->expects("open_file")->never;
+				App::MtAws::TreeHash->expects("new")->never;
+
+				my ($res, $out) = run_command($options, $j);
+				ok !$res;
+				like $out, qr/^SIZE MISSMATCH file1$/m;
+				check_ok($out, qw/size/);
+			};
+		};
+		it "should work when size is zero" => sub {
+			ordered_test sub {
+				expect_read_journal $j, $file1;
+
+				expect_file_exists $file1->{relfilename};
+				expect_file_size $file1->{relfilename}, 0;
+				expect_file_mtime $file1->{relfilename}, $file1->{mtime};
+				App::MtAws::CheckLocalHashCommand->expects("open_file")->never;
+				App::MtAws::TreeHash->expects("new")->never;
+
+				my ($res, $out) = run_command($options, $j);
+				ok !$res;
+				like $out, qr/^ZERO SIZE file1$/m;
+				check_ok($out, qw/zero/);
+			};
+		};
+		it "should work when file is not exists" => sub {
+			ordered_test sub {
+				expect_read_journal $j, $file1;
+
+				expect_file_exists $file1->{relfilename}, 0;
+				App::MtAws::CheckLocalHashCommand->expects("file_size")->never;
+				App::MtAws::CheckLocalHashCommand->expects("file_mtime")->never;
+				App::MtAws::CheckLocalHashCommand->expects("open_file")->never;
+				App::MtAws::TreeHash->expects("new")->never;
+
+				my ($res, $out) = run_command($options, $j);
+				ok !$res;
+				like $out, qr/^MISSED file1$/m;
+				check_ok($out, qw/missed/);
+			};
+		};
+		it "should never check mtime if it does not exist" => sub {
+			ordered_test sub {
+				my $file2 = {size => 1234, treehash => 'zz123ff', mtime => undef, relfilename => 'file2'};
+				expect_read_journal $j, $file2;
+
+				expect_file_exists $file2->{relfilename};
+				expect_file_size $file2->{relfilename}, $file2->{size};
+				App::MtAws::CheckLocalHashCommand->expects("file_mtime")->never;
+				expect_open_file my $fileobj = { mock => 1 }, $file2->{relfilename}, 1;
+				expect_treehash $fileobj, $file2->{treehash};
+
+				my ($res, $out) = run_command($options, $j);
+				ok $res;
+				like $out, qr/^OK file2 $file2->{size} $file2->{treehash}$/m;
+				check_ok($out, qw/ok/);
+			};
+		};
+		it "should work when file open error happens" => sub {
+			ordered_test sub {
+				expect_read_journal $j, $file1;
+
+				expect_file_exists $file1->{relfilename};
+				expect_file_size $file1->{relfilename}, $file1->{size};
+				expect_file_mtime $file1->{relfilename}, $file1->{mtime};
+				expect_open_file my $fileobj = { mock => 1 }, $file1->{relfilename}, 0, EACCES;
+				App::MtAws::TreeHash->expects("new")->never;
+
+				my ($res, $out) = run_command($options, $j);
+				ok !$res;
+				my $estr = strerror(EACCES);
+				like $out, qr/^CANNOT OPEN file file1: $estr$/m;
+				check_ok($out, qw/errors/);
+			};
+		};
+		it "should confess when close return error" => sub {
+			ordered_test sub {
+				expect_read_journal $j, $file1;
+
+				expect_file_exists $file1->{relfilename};
+				expect_file_size $file1->{relfilename}, $file1->{size};
+				expect_file_mtime $file1->{relfilename}, $file1->{mtime};
+				expect_open_file my $fileobj = { mock => 1 }, $file1->{relfilename}, 1;
+
+				my $treehash_mock = bless {}, 'App::MtAws::TreeHash';
+				App::MtAws::TreeHash->expects("new")->returns_ordered($treehash_mock);
+				$treehash_mock->expects("eat_file")->returns_ordered(sub {
+					cmp_deeply [@_], [$treehash_mock, $fileobj];
+				});
+				$treehash_mock->expects("calc_tree")->never;
+				$treehash_mock->expects("get_final_hash")->never;
+
+				my ($res, $out) = run_command($options, $j, 0);
+				ok !$res;
+			};
+		};
+		it "should work with dry-run" => sub {
+			ordered_test sub {
+				$options->{'dry-run'} = 1;
+				expect_read_journal $j, $file1;
+
+				App::MtAws::CheckLocalHashCommand->expects("file_exists")->never;
+				App::MtAws::CheckLocalHashCommand->expects("file_size")->never;
+				App::MtAws::CheckLocalHashCommand->expects("file_mtime")->never;
+				App::MtAws::CheckLocalHashCommand->expects("open_file")->never;
+				App::MtAws::TreeHash->expects("new")->never;
+
+				my ($res, $out) = run_command($options, $j);
+				ok $res;
+				like $out, qr/^Will check file file1$/m;
+				unlike $out, qr/TREEHASH/;
+				unlike $out, qr/OK/;
+			};
+		};
+		it "should work with several files" => sub {
+			ordered_test sub {
+				my @files = (
+					{size => 123, treehash => 'zz123', mtime => 456, relfilename => 'file1'},
+					{size => 1231, treehash => 'zz123', mtime => 4561, relfilename => 'file2'},
+					{size => 1232, treehash => 'zz123', mtime => 4562, relfilename => 'file3'},
+				);
+				my %files_h = map { $_->{relfilename} => $_ } @files;
+				expect_read_journal $j, @files;
+
+				App::MtAws::CheckLocalHashCommand->expects("file_exists")->returns(1)->exactly(scalar @files);
+				App::MtAws::CheckLocalHashCommand->expects("file_size")->returns(sub {
+					shift =~ m!([^/]+)$!;
+					$files_h{$1}->{size}
+				})->exactly(scalar @files);
+				App::MtAws::CheckLocalHashCommand->expects("file_mtime")->returns(sub {
+					shift =~ m!([^/]+)$!;
+					$files_h{$1}->{mtime}
+				})->exactly(scalar @files);
+				App::MtAws::CheckLocalHashCommand->expects("open_file")->returns(sub {
+					$_[1] =~ m!([^/]+)$!;
+					$_[0] = { mock => $files_h{$1}->{relfilename} };
+					1;
+				})->exactly(scalar @files);
+				my $treehash_mock = bless {}, 'App::MtAws::TreeHash';
+				App::MtAws::TreeHash->expects("new")->returns($treehash_mock)->exactly(scalar @files);
+				$treehash_mock->expects("eat_file")->exactly(scalar @files);
+				$treehash_mock->expects("calc_tree")->exactly(scalar @files);
+				$treehash_mock->expects("get_final_hash")->returns('zz123')->exactly(scalar @files);
+
+				my ($res, $out) = run_command($options, $j);
+				ok $res;
+				like $out, qr/^3 OK$/m;
+			};
 		};
 	};
-	my $err = $@;
-	
-	cmp_deeply $err, superhashof { code => 'check_local_hash_errors',
-		message => "check-local-hash reported errors"};
-		
-	ok $out =~ m!CANNOT OPEN file def/abc!;
-	ok $out =~ m!1 ERRORS!;
-	ok index($out, strerror(EACCES)) != -1;
-	# TODO: check also that 'next' is called!
-	
-	chmod 0744, $file;
-	unlink $file;
-1;
-	
-}
+};
 
+runtests unless caller;
 
 1;
-

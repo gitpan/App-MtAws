@@ -62,12 +62,12 @@ sub disable_validations
 {
 	my ($cb, @data) = (pop @_, @_);
 	local %disable_validations = @data ?
-	( 
+	(
 		'override_validations' => {
 			map { $_ => undef } @data
 		},
 	) :
-	( 
+	(
 		'override_validations' => {
 			journal => undef,
 			secret  => undef,
@@ -91,6 +91,7 @@ sub config_create_and_parse(@)
 sub capture_stdout($&)
 {
 	local(*STDOUT);
+	$_[0]='';# perl 5.8.x issue warning if undefined $out is used in open() below
 	open STDOUT, '>', \$_[0] or die "Can't open STDOUT: $!";
 	$_[1]->();
 }
@@ -98,11 +99,12 @@ sub capture_stdout($&)
 sub capture_stderr($&)
 {
 	local(*STDERR);
+	$_[0]='';# perl 5.8.x issue warning if undefined $out is used in open() below
 	open STDERR, '>', \$_[0] or die "Can't open STDERR: $!";
 	$_[1]->();
 }
 
-# TODO: call only as assert_raises_exception sub {}, $e - don't omit sub! 
+# TODO: call only as assert_raises_exception sub {}, $e - don't omit sub!
 sub assert_raises_exception(&@)
 {
 	my ($cb, $exception) = @_;
@@ -119,7 +121,7 @@ sub ordered_test
 	local $mock_order_realtime = 0;
 	local $mock_order_declare = 0;
 	no warnings 'once';
-	
+
 	local *Test::Spec::Mocks::Expectation::returns_ordered = sub {
 		my ($self, $arg) = @_;
 		my $n = ++$mock_order_declare;
@@ -134,28 +136,44 @@ sub ordered_test
 	shift->();
 }
 
+our $test_fast_ok_cnt = undef;
+
 sub fast_ok
 {
 	my ($cond, $descr) = @_;
 	die { FAST_OK_FAILED => $descr } unless $cond;
+	$test_fast_ok_cnt--;
+	1;
 }
 
+#
+# test_fast_ok 631, "Message" => sub {};
+# args: test plan, message (for case test pass), code block
+#
 sub test_fast_ok
 {
-	eval { shift->(); 1 } or do {
-		if ($@ && ref $@ eq ref {} && defined($@->{FAST_OK_FAILED})) {
+	my ($plan, $message, $cb) = @_;
+	local $test_fast_ok_cnt = $plan;
+	eval { $cb->(); 1 } or do {
+		if ($@ && ref $@ eq ref {} && exists($@->{FAST_OK_FAILED})) {
 			my $msg = $@->{FAST_OK_FAILED};
-			if (ref $msg eq 'CODE') {
+			if (defined($msg) && ref $msg eq 'CODE') {
 				ok 0, $msg->();
-			} else {
+			} elsif (defined($msg)) {
 				ok 0, $msg;
+			} else {
+				ok 0, "$message - FAILED";
 			}
 			return;
 		} else {
 			die $@;
 		}
 	};
-	ok (1, shift); 
+	if ($test_fast_ok_cnt) {
+		ok 0, "$message - expected $plan tests, but ran ".($plan - $test_fast_ok_cnt);
+	} else {
+		ok (1, $message);
+	}
 }
 
 

@@ -1,4 +1,5 @@
 .travis.yml
+bin/mtglacier
 Build.PL
 ChangeLog
 CONTRIBUTORS
@@ -53,6 +54,7 @@ mtglacier.pl
 README.md
 t/gemu/gemu.pl
 t/integration/byteenc_journal.t
+t/integration/cmd_check_local_hash.t
 t/integration/config_engine_config_file.t
 t/integration/config_engine_definitions.t
 t/integration/config_engine_dryrun.t
@@ -71,6 +73,7 @@ t/integration/config_read_config.t
 t/integration/journal.t
 t/integration/journal_parselines.t
 t/integration/journal_readwrite.t
+t/integration/journal_zerofiles.t
 t/integration/lwp.t
 t/integration/metadata.t
 t/integration/metadata_mt1.t
