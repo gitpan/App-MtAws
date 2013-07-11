@@ -1,3 +1,22 @@
+# mt-aws-glacier - Amazon Glacier sync client
+# Copyright (C) 2012-2013  Victor Efimov
+# http://mt-aws.com (also http://vs-dev.com) vs@vs-dev.com
+# License: GPLv3
+#
+# This file is part of "mt-aws-glacier"
+#
+#    mt-aws-glacier is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    mt-aws-glacier is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use 5.008008; # minumum perl version is 5.8.8, ancient cpan clients will ignore 'requires/perl' below
 use strict;
@@ -16,7 +35,11 @@ my $build = Module::Build->new(
 	recursive_test_files=>1,
 	dist_abstract=>'mt-aws/glacier - Perl Multithreaded Multipart sync to Amazon Glacier',
 	license     =>'gpl3',
-	script_files => ['bin/mtglacier'], # script_files since M::B 0.18
+
+	# this is a special version of 'mtglacier' script with different shebang and without FindBin
+	# http://blogs.perl.org/users/randy_stauner/2011/09/shebangs-with-perlbrew-aliases-and-eumm-and-without-locallib.html
+	script_files => ['bin/mtglacier'], # script_files directive since M::B 0.18
+	
 	meta_add => {
 		no_index => {
 			namespace => [ 'App::MtAws' ],
