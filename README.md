@@ -13,7 +13,7 @@ mt-aws-glacier is a client application for Glacier.
 
 ## Version
 
-* Version 0.972 beta (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
+* Version 0.973 beta (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
 
 [mt-aws glacier changelog]:https://github.com/vsespb/mt-aws-glacier/blob/master/ChangeLog
 
@@ -30,6 +30,7 @@ mt-aws-glacier is a client application for Glacier.
 * Checking integrity of local files using journal
 * Ability to limit number of archives to retrieve
 * File selection options for all commands (using flexible rules with wildcard support)
+* Full synchronization to Amazon Glacier - new file uploaded, modified files can be replaced, deletions can be propogated
 * File name and modification times are stored as Glacier metadata ([metadata format for developers][mt-aws-glacier Amazon Glacier meta-data format specification])
 * Ability to re-create journal file from Amazon Glacier metadata
 * Full UTF-8 support (and full single-byte encoding support for *BSD systems)
@@ -52,8 +53,10 @@ mt-aws-glacier is a client application for Glacier.
 
 ## Installation/System requirements
 
-Script is made for Linux OS. Tested under Ubuntu and Debian. Should work under other Linux distributions. Lightly tested under Mac OS X.
-Should NOT work under Windows. Minimum Perl version required is 5.8.8 (pretty old, AFAIK there are no supported distributions with older Perls)
+Script is made for Unix OS. Tested under Linux. Should work under other POSIX OSes (*BSD, Solaris). Lightly tested under Mac OS X.
+Should NOT work under Windows/Cygwin. Minimum Perl version required is 5.8.8 (pretty old, AFAIK there are no supported distributions with older Perls)
+
+### Manual (universal) installation instructions.
 
 * Install the following CPAN modules:
 
@@ -62,7 +65,6 @@ Should NOT work under Windows. Minimum Perl version required is 5.8.8 (pretty ol
 
 	* for older Perl < 5.9.3 (i.e. CentOS 5.x), install also **Digest::SHA** (or Debian package **libdigest-sha-perl** or RPM package **perl-Digest-SHA**)
 	* on some old Linux installations (examples: Ubuntu 10.04, CentOS 5.x) to use HTTPS you need to install **LWP::Protocol::https** via CPAN: `cpan -i LWP::Protocol::https`
-	or `cpanp -i LWP::Protocol::https`
 
 
 * Install mt-aws-glacier
@@ -71,7 +73,19 @@ Should NOT work under Windows. Minimum Perl version required is 5.8.8 (pretty ol
 
 	(or just download and unzip `https://github.com/vsespb/mt-aws-glacier/archive/master.zip` )
 
-	After that you can execute `mtglacier` command from any directory, or create a symlink to it - it will find other package files by itself.
+	After that you can execute `mtglacier` script (found in root of repository) from any directory, or create a symlink to it - it will find other package files by itself.
+
+### *OR* Installation via CPAN
+
+		cpan -i App::MtAws
+
+That's it.
+
+NOTE: CPAN distribution of *mt-aws-glacier* has a bit more dependencies than manual installation, as it requires additional modules for testsuite.
+
+NOTE: When installing CPAN modules, instead system `cpan` tool you might wan't to try [`cpanm`](http://search.cpan.org/dist/App-cpanminus/lib/App/cpanminus.pm) - it's much easier to install and configure.
+
+NOTE: New releases of *mt-aws-glacier* usually appear on CPAN within a ~week after official release.
 
 ## Warnings ( *MUST READ* )
 
@@ -105,7 +119,7 @@ does not define any new layer of abstraction over Amazon Glacier entities.
 
 ## Help/contribute this project
 
-* If you like mt-aws-glacier, and registered on GitHub, please **Star** it on GitHUb, this way you'll help promote the project.
+* If you like *mt-aws-glacier*, and registered on GitHub, please **Star** it on GitHUb, this way you'll help promote the project.
 * Please report any bugs or issues (using GitHub issues). Well, any feedback is welcomed.
 * If you want to contribute to the source code, please contact me first and describe what you want to do
 
@@ -326,7 +340,7 @@ If none of three above mode options provided, `--new` is implied (basically for 
 	Controls how `--replace-modified` detect modified files. Possible values are: `treehash`, `mtime`,  `mtime-and-treehash`, `mtime-or-treehash`.
 	Default value is `mtime-and-treehash`
 
-	File is always considered modified if its size changed (but not zero)
+	File is always considered modified if its *size changed* (but not zero)
 
 	 1. `treehash` - calculates TreeHash checksum for file and compares with one in Journal. If checksum does not match - file is modified.
 
@@ -337,7 +351,9 @@ If none of three above mode options provided, `--new` is implied (basically for 
 	 4. `mtime-and-treehash` - compares file last modification time, if it differs - compares TreeHash. If modification time is not changed, file
 	 treated as not-modified, treehash not checked.
 
-	 5. `always-positive` - always replace files, Modification time and TreeHash are ignored. Probably makes some sense only with `--filter` options.
+	 5. `always-positive` - always treat files as modified, Modification time and TreeHash are ignored. Probably makes some sense only with `--filter` options.
+
+	 6. `size-only` - treat files as modified only if size differs
 
 	NOTE: default mode for detect is `mtime-and-treehash`, it's more performance wise (treehash checked only for files with modification time changed),
 	but `mtime-or-treehash` and `treehash` are more safe in case you're not sure which programs change your files and how.
@@ -628,6 +644,9 @@ For more information see [find][find] and [File::Find][File::Find] manuals.
 	on the connection to the server is observed for `timeout` seconds. This means that the time it takes for the complete whole
 	request might be longer.
 
+9. `follow` (only `sync` command)
+
+	Follow symbolic links during directory traversal. This option hits performance and increases memory usage. Similar to `find -L`
 
 ## Configuring Character Encodings
 

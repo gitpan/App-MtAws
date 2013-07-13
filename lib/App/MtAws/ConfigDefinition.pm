@@ -259,6 +259,7 @@ sub get_config
 
 		option 'base-dir';
 		validation option('leaf-optimization', default => 1), message('%option a% should be either "1" or "0"'), sub { /^[01]$/ };
+		option 'follow', type=>'';
 
 		for (option 'filename') {
 			validation $_, message('%option a% not a file'), stop => 1, sub { -f binaryfilename };
@@ -307,7 +308,7 @@ sub get_config
 		validation
 			option('detect', default => 'mtime-and-treehash'),
 			$invalid_format,
-			sub { my $v = $_; first { $_ eq $v } qw/treehash mtime mtime-and-treehash mtime-or-treehash always-positive/ };
+			sub { my $v = $_; first { $_ eq $v } qw/treehash mtime mtime-and-treehash mtime-or-treehash always-positive size-only/ };
 
 		my @config_opts = (
 			validation(option('key'), $invalid_format, sub { /^[A-Za-z0-9]{20}$/ }),
@@ -349,7 +350,7 @@ sub get_config
 			validate(mandatory(
 				optional('config'), mandatory(@encodings), @config_opts, sync_opts, detect_opts, check_https,
 				qw/dir vault concurrency partsize/, writable_journal('journal'),
-				optional(qw/max-number-of-files leaf-optimization/),
+				optional(qw/max-number-of-files leaf-optimization follow/),
 				filter_options, optional('dry-run')
 			))
 		};

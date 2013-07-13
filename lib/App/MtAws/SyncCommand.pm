@@ -59,8 +59,12 @@ sub should_upload
 {
 	my ($options, $journal_file, $absfilename) = @_;
 
-	if ($journal_file->{size} != file_size($absfilename)) {
+	if ($options->{detect} eq 'always-positive') {
 		SHOULD_CREATE;
+	} elsif ($journal_file->{size} != file_size($absfilename)) {
+		SHOULD_CREATE;
+	} elsif ($options->{detect} eq 'size-only') {
+		SHOULD_NOACTION; # we already checked size above, so NOACTION
 	} elsif ($options->{detect} eq 'mtime') {
 		is_mtime_differs($options, $journal_file, $absfilename) ? SHOULD_CREATE : SHOULD_NOACTION;
 	} elsif ($options->{detect} eq 'treehash') {
@@ -69,8 +73,6 @@ sub should_upload
 		is_mtime_differs($options, $journal_file, $absfilename) ? SHOULD_TREEHASH : SHOULD_NOACTION;
 	} elsif ($options->{detect} eq 'mtime-or-treehash') {
 		is_mtime_differs($options, $journal_file, $absfilename) ? SHOULD_CREATE : SHOULD_TREEHASH;
-	} elsif ($options->{detect} eq 'always-positive') {
-		SHOULD_CREATE;
 	} else {
 		confess "Invalid detect option in should_upload";
 	}
