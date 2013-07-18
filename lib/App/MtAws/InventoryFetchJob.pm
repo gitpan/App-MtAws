@@ -20,6 +20,8 @@
 
 package App::MtAws::InventoryFetchJob;
 
+our $VERSION = '0.973_01';
+
 use strict;
 use warnings;
 use utf8;

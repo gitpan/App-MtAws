@@ -20,6 +20,8 @@
 
 package App::MtAws::ParentWorker;
 
+our $VERSION = '0.973_01';
+
 use lib 'lib';
 
 use strict;
@@ -48,7 +50,7 @@ sub process_task
 {
 	my ($self, $ft, $journal) = @_;
 	my $task_list = {};
-	while (1) {
+	while () {
 		if ( @{$self->{freeworkers}} ) {
 			my ($result, $task) = $ft->get_task();
 			if ($result eq 'wait') {

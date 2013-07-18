@@ -20,6 +20,7 @@
 
 package App::MtAws::FileFinishJob;
 
+our $VERSION = '0.973_01';
 
 use strict;
 use warnings;

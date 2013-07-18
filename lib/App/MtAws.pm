@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = "0.973";
+our $VERSION = '0.973_01';
 our $VERSION_MATURITY = "beta";
 
 use constant ONE_MB => 1024*1024;
@@ -68,9 +68,21 @@ use App::MtAws::Utils;
 use App::MtAws::Exceptions;
 use PerlIO::encoding;
 
+sub check_module_versions
+{
+	for (keys %INC) {
+		if (/^App\/MtAws\/(.*)\.pmc?$/) {
+			my $module = "App::MtAws::$1";
+			my $got = $module->VERSION;
+			$got = 'undef' unless defined $got;
+			die "FATAL: wrong version of $module, expected $VERSION, found $got" unless $got eq $VERSION;
+		}
+	};
+}
 
 sub main
 {
+	check_module_versions();
 	unless (defined eval {process(); 1;}) {
 		dump_error(q{});
 		exit(1);
@@ -97,7 +109,7 @@ sub process
 	if ($res->{warnings}) {
 		while (@{$res->{warnings}}) {
 			my ($warning, $warning_text) = (shift @{$res->{warnings}}, shift @{$res->{warning_texts}});
-			print STDERR "WARNING: $warning_text\n" unless $warning->{format} =~ /^(deprecated_option|deprecated_command|option_deprecated_for_command)$/; # TODO: temporary disable warning
+			print STDERR "WARNING: $warning_text\n"; # TODO: temporary disable warning
 		}
 	}
 	if ($res->{error_texts}) {
@@ -112,7 +124,7 @@ sub process
 		binmode STDOUT, ":encoding($options->{'terminal-encoding'})";
 	}
 
-	my %journal_opts = ( journal_encoding => $options->{'journal-encoding'}, filenames_encoding => $options->{'filenames-encoding'} );
+	my %journal_opts = ( journal_encoding => $options->{'journal-encoding'} );
 
 	if ($action eq 'sync') {
 		die "Not a directory $options->{dir}" unless -d binaryfilename $options->{dir};
@@ -121,6 +133,7 @@ sub process
 			filter => $options->{filters}{parsed}, leaf_optimization => $options->{'leaf-optimization'}, follow => $options->{'follow'});
 
 		require App::MtAws::SyncCommand;
+		check_module_versions;
 		App::MtAws::SyncCommand::run($options, $j);
 
 	} elsif ($action eq 'upload-file') {
@@ -192,6 +205,7 @@ END
 
 
 		require App::MtAws::RetrieveCommand;
+		check_module_versions;
 		App::MtAws::RetrieveCommand::run($options, $j);
 	} elsif ($action eq 'restore-completed') {
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{journal}, root_dir => $options->{dir}, filter => $options->{filters}{parsed});
@@ -228,6 +242,7 @@ END
 	} elsif ($action eq 'check-local-hash') {
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{journal}, root_dir => $options->{dir}, filter => $options->{filters}{parsed});
 		require App::MtAws::CheckLocalHashCommand;
+		check_module_versions;
 		App::MtAws::CheckLocalHashCommand::run($options, $j);
 	} elsif ($action eq 'retrieve-inventory') {
 		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
@@ -240,6 +255,7 @@ END
 		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{'new-journal'});
 		require App::MtAws::DownloadInventoryCommand;
+		check_module_versions;
 		App::MtAws::DownloadInventoryCommand::run($options, $j);
 	} elsif ($action eq 'create-vault') {
 		$options->{concurrency} = 1;
@@ -258,9 +274,14 @@ END
 	} elsif ($action eq 'help') {
 
 		# we load here all dynamically loaded modules, to check that installation is correct.
+		require App::MtAws::SyncCommand;
+		require App::MtAws::RetrieveCommand;
+		require App::MtAws::CheckLocalHashCommand;
+		require App::MtAws::DownloadInventoryCommand;
 		require App::MtAws::CheckLocalHashCommand;
 		require App::MtAws::DownloadInventoryCommand;
 		require App::MtAws::RetrieveCommand;
+		check_module_versions;
 
 		print <<"END";
 Usage: mtglacier.pl COMMAND [POSITIONAL ARGUMENTS] [OPTION]...

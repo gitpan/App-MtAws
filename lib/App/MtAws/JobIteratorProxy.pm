@@ -20,6 +20,8 @@
 
 package App::MtAws::JobIteratorProxy;
 
+our $VERSION = '0.973_01';
+
 use strict;
 use warnings;
 use utf8;
@@ -46,7 +48,7 @@ sub get_task
 {
 	my ($self) = @_;
 
-	while (1) {
+	while () {
 		my $maxcnt = $self->{maxcnt}||30;
 		OUTER: for (1) {
 			for my $job (@{$self->{jobs_a}}) {
