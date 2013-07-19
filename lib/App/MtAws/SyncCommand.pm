@@ -20,7 +20,7 @@
 
 package App::MtAws::SyncCommand;
 
-our $VERSION = '0.973_01';
+our $VERSION = '0.973_02';
 
 use strict;
 use warnings;
@@ -134,7 +134,7 @@ sub next_new
 	if (my $rec = shift @{ $j->{listing}{new} }) {
 		my ($absfilename, $relfilename) = ($j->absfilename($rec->{relfilename}), $rec->{relfilename});
 		App::MtAws::JobProxy->new(job =>
-				App::MtAws::FileCreateJob->new(filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$options->{partsize}));
+			App::MtAws::FileCreateJob->new(filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$options->{partsize}));
 	} else {
 		return;
 	}

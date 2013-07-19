@@ -20,7 +20,7 @@
 
 package App::MtAws::Task;
 
-our $VERSION = '0.973_01';
+our $VERSION = '0.973_02';
 
 use strict;
 use warnings;
@@ -29,15 +29,15 @@ use utf8;
 
 sub new
 {
-    my ($class, %args) = @_;
-    my $self = \%args;
-    bless $self, $class;
-    $self->{action}||die;
-    defined($self->{id})||die;
-    $self->{data}||die;
-    $self->{result}={};
-    return $self;
+	my ($class, %args) = @_;
+	my $self = \%args;
+	bless $self, $class;
+	$self->{action}||die;
+	defined($self->{id})||die;
+	$self->{data}||die;
+	$self->{result}={};
+	return $self;
 }
 
-	
+
 1;

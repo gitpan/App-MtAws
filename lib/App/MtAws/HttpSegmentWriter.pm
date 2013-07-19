@@ -20,7 +20,7 @@
 
 package App::MtAws::HttpWriter;
 
-our $VERSION = '0.973_01';
+our $VERSION = '0.973_02';
 
 use strict;
 use warnings;
@@ -31,17 +31,17 @@ use App::MtAws::TreeHash;
 
 sub new
 {
-    my ($class, %args) = @_;
-    my $self = \%args;
-    bless $self, $class;
-    $self->initialize();
-    return $self;
+	my ($class, %args) = @_;
+	my $self = \%args;
+	bless $self, $class;
+	$self->initialize();
+	return $self;
 }
 
 sub initialize
 {
 	my ($self) = @_;
-    $self->{write_threshold} = 2*1024*1024;
+	$self->{write_threshold} = 2*1024*1024;
 }
 
 sub reinit
@@ -97,13 +97,13 @@ sub finish
 {
 	my ($self) = @_;
 	$self->_flush();
-	$self->{total_commited_length} == $self->{total_length} or confess; 
+	$self->{total_commited_length} == $self->{total_length} or confess;
 	return ($self->{total_length} && ($self->{total_length} == $self->{size})) ? ('ok') : ('retry', 'Unexpected end of data');
 }
 
 package App::MtAws::HttpSegmentWriter;
 
-our $VERSION = '0.973_01';
+our $VERSION = '0.973_02';
 
 use strict;
 use warnings;
@@ -125,20 +125,20 @@ sub delayed_confess(@)
 
 sub new
 {
-    my ($class, %args) = @_;
-    my $self = \%args;
-    bless $self, $class;
-    $self->SUPER::initialize();
-    $self->initialize();
-    return $self;
+	my ($class, %args) = @_;
+	my $self = \%args;
+	bless $self, $class;
+	$self->SUPER::initialize();
+	$self->initialize();
+	return $self;
 }
 
 sub initialize
 {
 	my ($self) = @_;
-    defined($self->{filename}) or confess;
-    defined($self->{tempfile}) or confess;
-    defined($self->{position}) or confess;
+	defined($self->{filename}) or confess;
+	defined($self->{tempfile}) or confess;
+	defined($self->{position}) or confess;
 }
 
 sub reinit
@@ -176,7 +176,7 @@ sub finish
 
 package App::MtAws::HttpFileWriter;
 
-our $VERSION = '0.973_01';
+our $VERSION = '0.973_02';
 
 use strict;
 use warnings;
@@ -189,18 +189,18 @@ use base qw/App::MtAws::HttpWriter/;
 
 sub new
 {
-    my ($class, %args) = @_;
-    my $self = \%args;
-    bless $self, $class;
-    $self->SUPER::initialize();
-    $self->initialize();
-    return $self;
+	my ($class, %args) = @_;
+	my $self = \%args;
+	bless $self, $class;
+	$self->SUPER::initialize();
+	$self->initialize();
+	return $self;
 }
 
 sub initialize
 {
 	my ($self) = @_;
-    defined($self->{tempfile}) or confess;
+	defined($self->{tempfile}) or confess;
 }
 
 sub reinit
@@ -234,7 +234,7 @@ sub finish
 
 package App::MtAws::HttpMemoryWriter;
 
-our $VERSION = '0.973_01';
+our $VERSION = '0.973_02';
 
 use strict;
 use warnings;
@@ -246,10 +246,10 @@ use base qw/App::MtAws::HttpWriter/;
 
 sub new
 {
-    my ($class, %args) = @_;
-    my $self = {};
-    bless $self, $class;
-    return $self;
+	my ($class, %args) = @_;
+	my $self = {};
+	bless $self, $class;
+	return $self;
 }
 
 sub reinit

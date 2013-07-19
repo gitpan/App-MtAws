@@ -20,7 +20,7 @@
 
 package App::MtAws::GlacierRequest;
 
-our $VERSION = '0.973_01';
+our $VERSION = '0.973_02';
 
 use strict;
 use warnings;
@@ -57,13 +57,13 @@ sub new
 	$self->{host} = "$self->{service}.$self->{region}.amazonaws.com";
 
 	$self->{headers} = [];
-   
+
 	$self->add_header('Host', $self->{host});
 	$self->add_header('x-amz-glacier-version', '2012-06-01') if $self->{service} eq 'glacier';
 	$self->add_header('x-amz-security-token', $self->{token}) if defined $self->{token};
-	
-	return $self;                                                                                                                                                                                                                                                                     
-}                      
+
+	return $self;
+}
 
 sub add_header
 {
@@ -164,6 +164,7 @@ sub retrieve_archive
 	$self->{method} = 'POST';
 
 	#  add "SNSTopic": "sometopic"
+	# no Test::Tabs
 	my $body = <<"END";
 {
   "Type": "archive-retrieval",
@@ -171,6 +172,7 @@ sub retrieve_archive
 }
 END
 
+	# use Test::Tabs
 	$self->{dataref} = \$body;
 	
 	my $resp = $self->perform_lwp();
@@ -186,13 +188,14 @@ sub retrieve_inventory
 	$self->{method} = 'POST';
 
 	#  add "SNSTopic": "sometopic"
+	# no Test::Tabs
 	my $body = <<"END";
 {
   "Type": "inventory-retrieval",
   "Format": "JSON"
 }
 END
-
+	# use Test::Tabs
 	$self->{dataref} = \$body;
 	
 	my $resp = $self->perform_lwp();
@@ -525,7 +528,7 @@ sub perform_lwp
 		}
 		my $dt = time()-$t0;
 
-		if (($resp->code eq '500') && $resp->header('Client-Warning') && ($resp->header('Client-Warning') eq 'Internal response')) { 
+		if (($resp->code eq '500') && $resp->header('Client-Warning') && ($resp->header('Client-Warning') eq 'Internal response')) {
 			print "PID $$ HTTP connection problem (timeout?). Will retry ($dt seconds spent for request)\n";
 			$self->{last_retry_reason} = 'Internal response';
 			throttle($i);
@@ -610,14 +613,3 @@ sub trim
 
 1;
 __END__
-		} elsif ($resp->code =~ /^40[03]$/) {
-			if ($resp->content_type eq 'application/json') {
-				my $json = JSON::XS->new->allow_nonref;
-				my $scalar = eval { $json->decode( $resp->content ); }; # we assume content always in utf8
-				if (defined $scalar) {
-					my $code = $scalar->{code};
-					my $type = $scalar->{type};
-					my $message = $scalar->{message};
-				}
-			}
-			die;

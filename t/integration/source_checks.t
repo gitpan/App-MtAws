@@ -1,3 +1,5 @@
+#!/usr/bin/perl
+
 # mt-aws-glacier - Amazon Glacier sync client
 # Copyright (C) 2012-2013  Victor Efimov
 # http://mt-aws.com (also http://vs-dev.com) vs@vs-dev.com
@@ -18,45 +20,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::ProxyTask;
-
-our $VERSION = '0.973_02';
-
 use strict;
 use warnings;
-use utf8;
+use Test::Tabs;
+use FindBin;
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 
+my $basedir = "$FindBin::RealBin/../..";
+all_perl_files_ok( "$basedir/lib", "$basedir/t/unit", "$basedir/t/integration");
 
-sub new
-{
-	my ($class, %args) = @_;
-	my $self = \%args;
-
-	my $task = $self->{task}||die;
-	my $id = $self->{id}||die;
-	my $jobid = $self->{jobid}||die;
-
-	$self = $task;
-
-	$self->{_stack} ||= [];
-	push @{ $self->{_stack} }, { id => $self->{id}, jobid => $self->{jobid} };
-
-	$self->{id} = $id;
-	$self->{jobid} = $jobid;
-
-	bless $self, $class;
-	defined($self->{id})||die;
-	return $self;
-}
-
-sub pop
-{
-	my ($self) = @_;
-	my $stack = $self->{_stack};
-	my $s = pop @$stack;
-	$self->{id} = $s->{id};
-	$self->{jobid} = $s->{jobid};
-	$self;
-}
-	
 1;
