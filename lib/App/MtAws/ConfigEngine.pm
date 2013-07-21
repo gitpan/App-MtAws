@@ -20,7 +20,7 @@
 
 package App::MtAws::ConfigEngine;
 
-our $VERSION = '0.973_02';
+our $VERSION = '0.973_03';
 
 use Getopt::Long 2.24 qw/:config no_ignore_case/ ;
 use Encode;
@@ -199,6 +199,9 @@ sub parse_options
 
 	return { command => 'help', map { $_ => undef } qw/errors error_texts warnings warning_texts options/}
 		if (@ARGV && $ARGV[0] =~ /\b(help|h)\b/i);
+
+	return { command => 'version', map { $_ => undef } qw/errors error_texts warnings warning_texts options/}
+		if (@ARGV && $ARGV[0] =~ /^\-?\-?version$/i);
 
 	local $context = $self;
 
