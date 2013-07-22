@@ -20,7 +20,7 @@
 
 package App::MtAws::FileListDeleteJob;
 
-our $VERSION = '0.973_03';
+our $VERSION = '0.974';
 
 use strict;
 use warnings;
