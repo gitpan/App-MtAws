@@ -24,6 +24,7 @@ lib/App/MtAws/Filter.pm
 lib/App/MtAws/ForkEngine.pm
 lib/App/MtAws/GlacierRequest.pm
 lib/App/MtAws/HttpSegmentWriter.pm
+lib/App/MtAws/IntermediateFile.pm
 lib/App/MtAws/InventoryDownloadJob.pm
 lib/App/MtAws/InventoryFetchJob.pm
 lib/App/MtAws/Job.pm
@@ -54,6 +55,7 @@ mtglacier.pl
 README.md
 t/gemu/gemu.pl
 t/integration/byteenc_journal.t
+t/integration/child_worker.t
 t/integration/cmd_check_local_hash.t
 t/integration/config_engine_config_file.t
 t/integration/config_engine_definitions.t
@@ -71,6 +73,7 @@ t/integration/config_engine_v078.t
 t/integration/config_engine_v082.t
 t/integration/config_engine_v085.t
 t/integration/config_read_config.t
+t/integration/intermediate_file_ipc.t
 t/integration/journal.t
 t/integration/journal_follow.t
 t/integration/journal_parselines.t
@@ -100,6 +103,7 @@ t/unit/file_versions.t
 t/unit/file_versions_behaviour.t
 t/unit/filter.t
 t/unit/glacier_request.t
+t/unit/intermediate_file.t
 t/unit/job_file_create.t
 t/unit/job_segment_download.t
 t/unit/journal_add_delete.t
