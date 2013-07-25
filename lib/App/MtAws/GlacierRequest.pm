@@ -20,7 +20,7 @@
 
 package App::MtAws::GlacierRequest;
 
-our $VERSION = '0.974_01';
+our $VERSION = '0.974_02';
 
 use strict;
 use warnings;
@@ -34,10 +34,7 @@ use App::MtAws::MetaData;
 use App::MtAws::Utils;
 use App::MtAws::Exceptions;
 use App::MtAws::HttpSegmentWriter;
-use Fcntl qw/O_CREAT O_RDWR LOCK_EX LOCK_UN/;
-use File::Temp ();
-use File::Basename;
-use File::Path;
+use App::MtAws::IntermediateFile;
 use Carp;
 
 
@@ -221,25 +218,18 @@ sub retrieval_fetch_job
 # TODO: rename
 sub retrieval_download_job
 {
-	my ($self, $jobid, $filename, $size, $journal_treehash) = @_;
+	my ($self, $jobid, $relfilename, $tempfile, $size, $journal_treehash) = @_;
 
 	$journal_treehash||confess;
 	$jobid||confess;
-	defined($filename)||confess;
+	defined($tempfile)||confess;
+	defined($relfilename)||confess;
 	$size or confess "no size";
 
 	$self->{url} = "/$self->{account_id}/vaults/$self->{vault}/jobs/$jobid/output";
 
-	# TODO: move to ChildWorker?
-	my $dirname = dirname($filename);
-	my $binary_dirname = binaryfilename $dirname;
-	mkpath($binary_dirname);
-	my $tmp = new File::Temp( TEMPLATE => '__mtglacier_temp_XXXXXX', UNLINK => 1, SUFFIX => '.tmp', DIR => $binary_dirname);
-	my $binary_tempfile = $tmp->filename;
-	my $character_tempfile = characterfilename($binary_tempfile);
-	close $tmp;
 	$self->{expected_size} = $size;
-	$self->{writer} = App::MtAws::HttpFileWriter->new(tempfile => $character_tempfile);
+	$self->{writer} = App::MtAws::HttpFileWriter->new(tempfile => $tempfile);
 
 	$self->{method} = 'GET';
 
@@ -253,21 +243,16 @@ sub retrieval_download_job
 		die exception 'treehash_mismatch_full' =>
 		'TreeHash for received file %string filename% (full file) does not match. '.
 		'TreeHash reported by server: %reported%, Calculated TreeHash: %calculated%, TreeHash from Journal: %journal_treehash%',
-		calculated => $th, reported => $reported_th, journal_treehash => $journal_treehash, filename => $filename;
+		calculated => $th, reported => $reported_th, journal_treehash => $journal_treehash, filename => $relfilename;
 		# TODO: better report relative filename
 
 	$reported_th eq $journal_treehash or
 		die exception 'treehash_mismatch_journal' =>
 		'TreeHash for received file %string filename% (full file) does not match TreeHash in journal. '.
 		'TreeHash reported by server: %reported%, Calculated TreeHash: %calculated%, TreeHash from Journal: %journal_treehash%',
-		calculated => $th, reported => $reported_th, journal_treehash => $journal_treehash, filename => $filename;
+		calculated => $th, reported => $reported_th, journal_treehash => $journal_treehash, filename => $relfilename;
 		# TODO: better report relative filename
 
-	# TODO: move to ChildWorker?
-	$tmp->unlink_on_destroy(0);
-	undef $tmp;
-	rename $binary_tempfile, binaryfilename($filename) or confess "cannot rename file";
-	chmod((0666 & ~umask), binaryfilename($filename)) or confess;
 
 	return $resp ? 1 : undef;
 }

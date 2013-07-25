@@ -20,7 +20,7 @@
 
 package App::MtAws::CheckLocalHashCommand;
 
-our $VERSION = '0.974_01';
+our $VERSION = '0.974_02';
 
 use strict;
 use warnings;
@@ -30,7 +30,6 @@ use App::MtAws::Utils;
 use App::MtAws::TreeHash;
 use App::MtAws::Exceptions;
 use App::MtAws::Journal;
-use File::stat;
 
 sub run
 {

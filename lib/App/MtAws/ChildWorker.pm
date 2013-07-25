@@ -20,7 +20,7 @@
 
 package App::MtAws::ChildWorker;
 
-our $VERSION = '0.974_01';
+our $VERSION = '0.974_02';
 
 use App::MtAws::LineProtocol;
 use App::MtAws::GlacierRequest;
@@ -30,7 +30,6 @@ use strict;
 use warnings;
 use utf8;
 use File::Basename;
-use File::Path;
 use Carp;
 use IO::Select;
 use POSIX;
@@ -120,8 +119,17 @@ sub process_task
 		$console_out = "Deleted $data->{relfilename} archive_id [$data->{archive_id}]";
 	} elsif ($action eq 'retrieval_download_job') {
 		my $req = App::MtAws::GlacierRequest->new($self->{options});
-		my $r = $req->retrieval_download_job($data->{jobid}, $data->{filename}, $data->{size}, $data->{treehash});
+
+		my $dirname = dirname($data->{filename});
+		my $i_tmp = App::MtAws::IntermediateFile->new(dir => $dirname);
+		my $tempfile = $i_tmp->filename;
+
+		my $r = $req->retrieval_download_job($data->{jobid}, $data->{relfilename}, $tempfile, $data->{size}, $data->{treehash});
+
 		confess "retrieval_download_job failed" unless $r;
+
+		$i_tmp->make_permanent($data->{filename}, mtime => $data->{mtime});
+
 		$result = { response => $r };
 		$console_out = "Downloaded archive $data->{filename}";
 	} elsif ($action eq 'segment_download_job') {

@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '0.974_01';
+our $VERSION = '0.974_02';
 our $VERSION_MATURITY = "beta";
 
 use constant ONE_MB => 1024*1024;
@@ -60,7 +60,6 @@ use App::MtAws::Journal;
 use App::MtAws::ConfigDefinition;
 use App::MtAws::ForkEngine qw/with_forks fork_engine/;
 use Carp;
-use File::stat;
 use IO::Handle;
 use App::MtAws::CreateVaultJob;
 use App::MtAws::DeleteVaultJob;

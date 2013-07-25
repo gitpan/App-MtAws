@@ -46,6 +46,10 @@ my $data = {
 	treehash => '1368761bd826f76cae8b8a74b3aae210b476333484c2d612d061d52e36af631a',
 };
 
+{
+	package MockIntermediateFile;
+	sub filename { "mytmpfile" };
+}
 my $segment_size = 16;
 
 for my $size_d (-3*ONE_MB, -2*ONE_MB, -1*ONE_MB, -3, -2, -1, 0, 1, 2, 3, ONE_MB, 2*ONE_MB, 3*ONE_MB) {
@@ -62,15 +66,15 @@ for my $size_d (-3*ONE_MB, -2*ONE_MB, -1*ONE_MB, -3, -2, -1, 0, 1, 2, 3, ONE_MB,
 			'segment-size' => $segment_size,
 		}
 	);
-	$job->{tempfile} = 1;
-	
+	$job->{i_tmp} = bless {}, 'MockIntermediateFile';
+
 	my $next_position = 0;
 	my $is_last = 0;
 	while() {
 		my ($code, $t) = $job->get_task();
 		if ($code eq 'ok') {
 			cmp_deeply $t->{data}, superhashof({
-				archive_id => $data->{archive_id}, relfilename => $data->{relfilename},
+				archive_id => $data->{archive_id}, relfilename => $data->{relfilename}, tempfile => "mytmpfile",
 				filename => $data->{relfilename}, mtime => $data->{mtime}, jobid => $data->{jobid},
 				position => $next_position
 			});
@@ -104,8 +108,8 @@ for my $size_d (-3*ONE_MB, -2*ONE_MB, -1*ONE_MB, -3, -2, -1, 0, 1, 2, 3, ONE_MB,
 			'segment-size' => $segment_size,
 		}
 	);
-	$job->{tempfile} = 1;
-	
+	$job->{i_tmp} = bless {}, 'MockIntermediateFile';
+
 	my @tasks;
 	while() {
 		my ($code, $t) = $job->get_task();
@@ -117,9 +121,9 @@ for my $size_d (-3*ONE_MB, -2*ONE_MB, -1*ONE_MB, -3, -2, -1, 0, 1, 2, 3, ONE_MB,
 			confess;
 		}
 	}
-	
+
 	my $last_task = shift @tasks;
-	
+
 	no warnings 'redefine';
 	my $original = \&App::MtAws::SegmentDownloadJob::do_finish;
 	local *App::MtAws::SegmentDownloadJob::do_finish = sub { confess "unexpected finish" };
@@ -141,8 +145,8 @@ for my $size_d (-3*ONE_MB, -2*ONE_MB, -1*ONE_MB, -3, -2, -1, 0, 1, 2, 3, ONE_MB,
 			'segment-size' => $segment_size,
 		}
 	);
-	$job->{tempfile} = 1;
-	
+	$job->{i_tmp} = bless {}, 'MockIntermediateFile';
+
 	no warnings 'redefine';
 	my $finished = 0;
 	my $original = \&App::MtAws::SegmentDownloadJob::do_finish;

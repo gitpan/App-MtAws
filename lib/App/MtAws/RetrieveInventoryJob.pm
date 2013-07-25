@@ -20,13 +20,12 @@
 
 package App::MtAws::RetrieveInventoryJob;
 
-our $VERSION = '0.974_01';
+our $VERSION = '0.974_02';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
-use File::stat;
 
 
 sub new
@@ -60,5 +59,5 @@ sub finish_task
 		die;
 	}
 }
-	
+
 1;
