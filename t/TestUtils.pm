@@ -33,10 +33,11 @@ require Exporter;
 use base qw/Exporter/;
 use Carp;
 use IO::Pipe;
+use File::Temp qw/tempdir/;
 
 our %disable_validations;
 our @EXPORT = qw/fake_config config_create_and_parse disable_validations no_disable_validations warning_fatal
-capture_stdout capture_stderr assert_raises_exception ordered_test test_fast_ok fast_ok with_fork can_work_with_non_utf8_files/;
+capture_stdout capture_stderr assert_raises_exception ordered_test test_fast_ok fast_ok with_fork can_work_with_non_utf8_files get_temp_dir/;
 
 use Test::Deep; # should be last line, after EXPORT stuff, otherwise versions ^(0\.089|0\.09[0-9].*) do something nastly with exports
 
@@ -45,6 +46,11 @@ use constant ALARM_FOR_FORK_TESTS => 30;
 sub warning_fatal
 {
 	$SIG{__WARN__} = sub {confess "Termination after a warning: $_[0]"};
+}
+
+sub get_temp_dir
+{
+	tempdir();
 }
 
 sub fake_config(@)
@@ -187,26 +193,21 @@ sub with_fork(&&)
 
 	if (my $pid = fork()) {
 		my $child_exited = 0;
-		{
-			local $SIG{CHLD} = sub { $child_exited = 1; };
-			$fromchild->reader();
-			$fromchild->autoflush(1);
-			$fromchild->blocking(1);
-			binmode $fromchild;
+		$fromchild->reader();
+		$fromchild->autoflush(1);
+		$fromchild->blocking(1);
+		binmode $fromchild;
 
-			$tochild->writer();
-			$tochild->autoflush(1);
-			$tochild->blocking(1);
-			binmode $tochild;
+		$tochild->writer();
+		$tochild->autoflush(1);
+		$tochild->blocking(1);
+		binmode $tochild;
 
-			alarm ALARM_FOR_FORK_TESTS; # protect from hang in case our test fail
-			$parent_cb->($tochild, $fromchild);
-			alarm 0;
-		}
-		unless ($child_exited) {
-			kill 'USR1', $pid; # this PID is exists and it's our child, otherwise we'd exit in SIG CHLD above
-			while(waitpid($pid, 0) != -1){ };
-		}
+		alarm ALARM_FOR_FORK_TESTS; # protect from hang in case our test fail
+		$parent_cb->($fromchild, $tochild);
+		alarm 0;
+
+		while(wait() != -1){};
 	} else {
 		$fromchild->writer();
 		$fromchild->autoflush(1);
@@ -221,6 +222,7 @@ sub with_fork(&&)
 		alarm ALARM_FOR_FORK_TESTS; # protect from hang in case our test fail
 		$child_cb->($tochild, $fromchild);
 		alarm 0;
+
 		exit(0);
 	}
 }

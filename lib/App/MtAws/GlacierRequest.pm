@@ -20,7 +20,7 @@
 
 package App::MtAws::GlacierRequest;
 
-our $VERSION = '0.974_02';
+our $VERSION = '0.974_03';
 
 use strict;
 use warnings;
@@ -34,7 +34,6 @@ use App::MtAws::MetaData;
 use App::MtAws::Utils;
 use App::MtAws::Exceptions;
 use App::MtAws::HttpSegmentWriter;
-use App::MtAws::IntermediateFile;
 use Carp;
 
 

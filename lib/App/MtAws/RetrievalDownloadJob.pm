@@ -20,7 +20,7 @@
 
 package App::MtAws::RetrievalDownloadJob;
 
-our $VERSION = '0.974_02';
+our $VERSION = '0.974_03';
 
 use strict;
 use warnings;

@@ -117,7 +117,7 @@ NOTE: CPAN asks too many questions during install (but ignores important errors)
 	o conf commit
 	exit
 
-NOTE: Instead system `cpan` tool you might want to try [`cpanm`](http://search.cpan.org/dist/App-cpanminus/lib/App/cpanminus.pm) - it's a bit easier to install and configure.
+NOTE: Instead system `cpan` tool you might want to try [`cpanm`](http://search.cpan.org/perldoc?App%3A%3Acpanminus) - it's a bit easier to install and configure.
 
 
 ## Warnings ( *MUST READ* )

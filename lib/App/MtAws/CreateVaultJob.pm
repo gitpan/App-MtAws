@@ -20,7 +20,7 @@
 
 package App::MtAws::CreateVaultJob;
 
-our $VERSION = '0.974_02';
+our $VERSION = '0.974_03';
 
 use strict;
 use warnings;

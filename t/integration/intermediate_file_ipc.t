@@ -22,24 +22,22 @@
 
 use strict;
 use warnings;
-use Test::More tests => 15;
+use Test::More tests => 19;
 use FindBin;
 use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use TestUtils;
 use App::MtAws::IntermediateFile;
-use File::Temp;
 use Carp;
 use Fcntl qw/SEEK_SET LOCK_EX LOCK_UN SEEK_SET/;
 
 warning_fatal();
 
-my $TEMP = File::Temp->newdir();
-my $rootdir = $TEMP->dirname();
+my $rootdir = get_temp_dir();
 
 with_fork
 	sub {
-		my (undef, $fromchild) = @_;
-		my $filename = <$fromchild>;
+		my ($in, $out) = @_;
+		my $filename = <$in>;
 		chomp $filename;
 		my $data_sample = "abcdefz\n";
 
@@ -52,36 +50,37 @@ with_fork
 		ok (flock($f, LOCK_UN ), "file unlocked");
 		ok (close($f), "file closed");
 
-		ok (open(my $in, "<", $filename), "file opened for reading");
-		my $got_data = do { local $/; <$in> };
+		ok (open(my $infile, "<", $filename), "file opened for reading");
+		my $got_data = do { local $/; <$infile> };
 		ok defined($got_data), "we got data";
-		ok close($in), "file closed";
+		ok close($infile), "file closed";
 
 		is $got_data, $data_sample, "file acts well";
+		print $out "ok\n";
 	},
 	sub {
-		my ($tochild, $fromchild) = @_;
-		my $I = App::MtAws::IntermediateFile->new(dir => $rootdir);
-		print $fromchild $I->filename."\n";
-		<$tochild>;
+		my ($in, $out) = @_;
+		my $I = App::MtAws::IntermediateFile->new(target_file => "$rootdir/somefile");
+		print $out $I->tempfilename."\n";
+		<$in>;
 	};
 
 {
 	my $filename;
 	with_fork
 		sub {
-			my ($tochild, $fromchild) = @_;
-			$filename = <$fromchild>;
+			my ($in, $out) = @_;
+			$filename = <$in>;
 			chomp $filename;
 			ok -f $filename, "file is file";
-			print $tochild "ok\n";
-			<$fromchild>;
+			print $out "ok\n";
+			<$in>;
 		},
 		sub {
-			my ($tochild, $fromchild) = @_;
-			my $I = App::MtAws::IntermediateFile->new(dir => $rootdir);
-			print $fromchild $I->filename."\n";
-			<$tochild>;
+			my ($in, $out) = @_;
+			my $I = App::MtAws::IntermediateFile->new(target_file => "$rootdir/somefile2");
+			print $out $I->tempfilename."\n";
+			<$in>;
 			die "diying from child\n";
 		};
 	ok ! -e $filename, "temporary file discarded when child dies";
@@ -91,21 +90,50 @@ with_fork
 	my $filename;
 	with_fork
 		sub {
-			my ($tochild, $fromchild) = @_;
-			$filename = <$fromchild>;
+			my ($in, $out) = @_;
+			$filename = <$in>;
 			chomp $filename;
 			ok -f $filename, "file is file";
-			print $tochild "ok\n";
-			<$fromchild>;
+			print $out "ok\n";
+			<$in>;
 		},
 		sub {
-			my ($tochild, $fromchild) = @_;
-			my $I = App::MtAws::IntermediateFile->new(dir => $rootdir);
-			print $fromchild $I->filename."\n";
-			<$tochild>;
+			my ($in, $out) = @_;
+			my $I = App::MtAws::IntermediateFile->new(target_file => "$rootdir/somefile3");
+			print $out $I->tempfilename."\n";
+			<$in>;
 			exit(0);
 		};
 	ok ! -e $filename, "temporary file discarded when child exits";
 }
+
+
+#
+# this test actually fail with File::Temp 0.16, but we cant get to this point as
+# other testsuite prereqs in 0.19 and we can ignore such failure, as should
+# not use IntermediateFile during fork()
+#
+{
+	my $filename;
+	{
+		my $I = App::MtAws::IntermediateFile->new(target_file => "$rootdir/somefile4");
+		$filename = $I->tempfilename;
+		with_fork
+			sub {
+				my ($in, $out) = @_;
+				ok -e $filename, "file is file";
+				print $out "ok\n";
+			},
+			sub {
+				my ($in, $out) = @_;
+				<$in>;
+				exit(0);
+			};
+		ok -e $filename, "file is still exists after child existed";
+	}
+	ok !-e $filename, "file is discarded";
+}
+
+ok 1, "test flow finished";
 
 1;
