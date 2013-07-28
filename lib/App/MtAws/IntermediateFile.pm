@@ -20,13 +20,13 @@
 
 package App::MtAws::IntermediateFile;
 
-our $VERSION = '0.974_03';
+our $VERSION = '0.974_04';
 
 use strict;
 use warnings;
 use utf8;
 use Carp;
-use File::Temp ();
+use File::Temp 0.16 ();
 use File::Path;
 use File::Basename;
 use App::MtAws::Utils;
@@ -42,6 +42,7 @@ sub new
 	confess "unknown arguments" if %args;
 	bless $self, $class;
 	$self->_init();
+	$self->{_init_pid} = $$;
 	return $self;
 }
 
@@ -55,7 +56,10 @@ sub _init
 		'Cannot create directory %string dir%, errors: %error%',
 		dir => $dir, error => hex_dump_string($@);
 	};
-	$self->{tmp} = eval { File::Temp->new(TEMPLATE => "__mtglacier_temp${$}_XXXXXX", UNLINK => 1, SUFFIX => '.tmp', DIR => $binary_dirname) } or do {
+	$self->{tmp} = eval {
+		# PID is needed cause child processes re-use random number generators, improves performance only, no risk of race cond.
+		File::Temp->new(TEMPLATE => "__mtglacier_temp${$}_XXXXXX", UNLINK => 1, SUFFIX => '.tmp', DIR => $binary_dirname)
+	} or do {
 		die exception 'cannot_create_tempfile' =>
 		'Cannot create temporary file in directory %string dir%, errors: %error%',
 		dir => $dir, error => hex_dump_string($@);
@@ -84,6 +88,20 @@ sub make_permanent
 	undef $self->{tmp};
 	chmod((0666 & ~umask), $binary_target_filename) or confess "cannot chmod file $self->{target_file}";
 	utime $self->{mtime}, $self->{mtime}, $binary_target_filename or confess "cannot change mtime" if defined $self->{mtime};
+}
+
+# File::Temp < 0.19 does not have protection from calling destructor in fork'ed child
+# and forking can happen any moments, some code in File::Spec/Cwd etc call it to exec external commands
+# this workaround prevents this, however destruction order is undefined so that might just fail
+
+# we can try use File::Temp::tempfile() but it destroys temp files only on program exit
+# (can workaround with DESTROY) + when handle is closed! (thats bad)
+sub DESTROY
+{
+	my ($self) = @_;
+	local ($!, $@, $?);
+	eval { $self->{tmp}->unlink_on_destroy(0) }
+		if ($self->{_init_pid} && $self->{_init_pid} != $$ && $self->{tmp});
 }
 
 1;

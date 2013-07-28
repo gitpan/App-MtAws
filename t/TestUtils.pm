@@ -50,7 +50,8 @@ sub warning_fatal
 
 sub get_temp_dir
 {
-	tempdir();
+	$SIG{INT} = sub { exit(1); }; # Global signal, for cleaning temporary files
+	tempdir("__AppMtAws_t_${$}_XXXXXXXX", TMPDIR => 1, CLEANUP => 1); # pid needed cause child processes re-use random number generators
 }
 
 sub fake_config(@)
@@ -207,7 +208,7 @@ sub with_fork(&&)
 		$parent_cb->($fromchild, $tochild);
 		alarm 0;
 
-		while(wait() != -1){};
+		while(wait() != -1 ){};
 	} else {
 		$fromchild->writer();
 		$fromchild->autoflush(1);

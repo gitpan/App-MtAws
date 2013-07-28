@@ -20,7 +20,7 @@
 
 package App::MtAws::ForkEngine;
 
-our $VERSION = '0.974_03';
+our $VERSION = '0.974_04';
 
 use strict;
 use warnings;
@@ -82,12 +82,32 @@ sub new
 	return $self;
 }
 
+sub run_children
+{
+	my ($self, $child_fromchild, $child_tochild) = @_;
+	my $C = App::MtAws::ChildWorker->new(options => $self->{options}, fromchild => $child_fromchild, tochild => $child_tochild);
+	dump_error("child $$") unless (defined eval {$C->process(); 1;});
+}
+
+sub run_parent
+{
+	my ($self, $disp_select) = @_;
+	return $self->{parent_worker} = App::MtAws::ParentWorker->new(children => $self->{children}, disp_select => $disp_select, options=>$self->{options});
+}
+
+sub parent_exit_on_signal
+{
+	my ($self, $sig, $children) = @_;
+	print STDERR "\nEXIT on SIG$sig\n";
+	exit(1);
+}
+
 sub start_children
 {
 	my ($self) = @_;
 	# parent's data
 	my $disp_select = IO::Select->new();
-	my $parent_pid = $$;
+	$self->{parent_pid} = $$;
 	# child/parent code
 	for my $n (1..$self->{options}->{concurrency}) {
 		my ($ischild, $child_fromchild, $child_tochild) = $self->create_child($disp_select);
@@ -103,28 +123,31 @@ sub start_children
 					}
 				};
 			}
-			my $C = App::MtAws::ChildWorker->new(options => $self->{options}, fromchild => $child_fromchild, tochild => $child_tochild);
-
-			dump_error("child $$") unless (defined eval {$C->process(); 1;});
+			$self->run_children($child_fromchild, $child_tochild);
 			exit(1);
 		}
 	}
-	
+
 	my $first_time = 1;
 	for my $sig (qw/INT TERM CHLD USR1 HUP/) {
 		$SIG{$sig} = sub {
 			local ($!,$^E,$@);
+			if ($sig eq 'CHLD') {
+				my $pid = waitpid(-1, WNOHANG);
+				# make sure we caugth signal from our children, not from external command executionin 3rd party module
+				# easy to test by adding `whoami` to parent after-fork-code
+				return unless $pid > 0 and defined $self->{children}{$pid};
+			}
 			if ($first_time) {
 				$first_time = 0;
 				kill (POSIX::SIGUSR2, keys %{$self->{children}});
-				while((my $w = wait()) != -1){};
-				print STDERR "EXIT on SIG$sig\n";
-				exit(1);
+				while( wait() != -1 ){};
+				$self->parent_exit_on_signal($sig, $self->{children});
 			}
 		};
 	}
-	
-	return $self->{parent_worker} = App::MtAws::ParentWorker->new(children => $self->{children}, disp_select => $disp_select, options=>$self->{options});
+
+	return $self->run_parent($disp_select);
 }
 
 #
@@ -187,6 +210,6 @@ sub terminate_children
 	my ($self) = @_;
 	$SIG{INT} = $SIG{TERM} = $SIG{CHLD} = $SIG{USR2}='IGNORE';
 	kill (POSIX::SIGUSR2, keys %{$self->{children}}); # TODO: we terminate all children with SIGUSR2 even on normal exit
-	while(wait() != -1) { print STDERR "wait\n";};
+	while( wait() != -1 ){ print STDERR "wait\n"};
 }
 1;

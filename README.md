@@ -39,7 +39,6 @@ mt-aws-glacier is a client application for Glacier.
 * Vault creation and deletion
 * STS/IAM security tokens support
 
-[Amazon Glacier API CPAN module - Net::Amazon::Glacier]:https://metacpan.org/module/Net::Amazon::Glacier
 [mt-aws-glacier Amazon Glacier meta-data format specification]:https://github.com/vsespb/mt-aws-glacier/blob/master/lib/App/MtAws/MetaData.pm
 
 ## Important bugs/missing features
@@ -71,8 +70,6 @@ Should NOT work under Windows/Cygwin. Minimum Perl version required is 5.8.8 (pr
 	NOTE: *Fedora*, *CentOS 6* etc [decoupled](http://www.nntp.perl.org/group/perl.perl5.porters/2009/08/msg149747.html) Perl,
 	so package named `perl`, which is a part of default installation, is not actually real, full Perl, which is misleading.
 	`perl-core` is looks much more like a real Perl (I [hope](https://bugzilla.redhat.com/show_bug.cgi?id=985791) so)
-
-	NOTE: On newer RHEL distributions (*Fedora*) you might need install `perl-LWP-Protocol-https` package to use HTTPS.
 
 	NOTE: For some RPM packages listed above you need enable [EPEL](http://fedoraproject.org/wiki/EPEL) repository
 
@@ -751,6 +748,17 @@ which are made of random bytes/garbage is not supported. usually it's not a prob
 
 		./cycletest.sh init MYDIR
 		./cycletest.sh purge MYDIR
+
+## See also
+
+* Amazon Glacier Perl library on CPAN - see [Net::Amazon::Glacier][Amazon Glacier API CPAN module - Net::Amazon::Glacier] by *Tim Nordenfur*
+* Amazon Glacier TreeHash CPAN module [Net::Amazon::TreeHash][Amazon Glacier TreeHash CPAN module - Net::Amazon::TreeHash] (copied from `mtglacier` code)
+* [Amazon Glacier development forum][Amazon Glacier development forum]
+
+[Amazon Glacier API CPAN module - Net::Amazon::Glacier]:https://metacpan.org/module/Net::Amazon::Glacier
+[Amazon Glacier TreeHash CPAN module - Net::Amazon::TreeHash]:https://metacpan.org/module/Net::Amazon::TreeHash
+[Amazon Glacier development forum]:https://forums.aws.amazon.com/forum.jspa?forumID=140
+
 
 ## Minimum Amazon Glacier permissions:
 
