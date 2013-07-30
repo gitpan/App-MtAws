@@ -20,7 +20,7 @@
 
 package App::MtAws::RetrieveCommand;
 
-our $VERSION = '0.974_04';
+our $VERSION = '0.974_05';
 
 use strict;
 use warnings;

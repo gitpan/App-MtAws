@@ -20,7 +20,7 @@
 
 package App::MtAws::LineProtocol;
 
-our $VERSION = '0.974_04';
+our $VERSION = '0.974_05';
 
 use strict;
 use warnings;
@@ -55,13 +55,13 @@ sub encode_data
 sub get_data
 {
 	my ($fh) = @_;
-	
+
 	my ($len, $line);
 
 	sysreadfull($fh, $len, 8) &&
 	sysreadfull($fh, $line, $len+0) or
 	return;
-	
+
 	chomp $line;
 	my ($pid, $action, $taskid, $datasize, $attachmentsize) = split /\t/, $line;
 	sysreadfull($fh, my $data_e, $datasize) or
@@ -72,7 +72,7 @@ sub get_data
 			return;
 	}
 	my $data = decode_data($data_e);
-	return ($pid, $action, $taskid, $data, $attachment ? \$attachment : ());
+	return ($pid, $action, $taskid, $data, defined($attachment) ? \$attachment : ());
 }
 
 sub send_data
@@ -80,7 +80,10 @@ sub send_data
 	my ($fh, $action, $taskid, $data, $attachmentref) = @_;
 	my $data_e = encode_data($data);
 	confess if is_wide_string($data_e);
-	confess "Attachment should be a binary string" if $attachmentref && is_wide_string($$attachmentref);
+	if ($attachmentref) {
+		confess "Attachment should be a binary string" if is_wide_string($$attachmentref);
+		confess "Attachment should not be empty" unless defined($$attachmentref) && length($$attachmentref);
+	}
 	my $attachmentsize = $attachmentref ? length($$attachmentref) : 0;
 	my $datasize = length($data_e);
 	my $line = "$$\t$action\t$taskid\t$datasize\t$attachmentsize\n"; # encode_data returns ASCII-7bit data, so ok here
