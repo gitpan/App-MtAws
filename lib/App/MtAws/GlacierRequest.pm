@@ -20,7 +20,7 @@
 
 package App::MtAws::GlacierRequest;
 
-our $VERSION = '0.975_01';
+our $VERSION = '0.975_02';
 
 use strict;
 use warnings;
