@@ -20,7 +20,7 @@
 
 package App::MtAws::Utils;
 
-our $VERSION = '0.975';
+our $VERSION = '0.975_01';
 
 use strict;
 use warnings;
@@ -29,7 +29,6 @@ use File::Spec;
 use File::stat;
 use Carp;
 use Encode;
-use POSIX;
 use App::MtAws::Exceptions;
 use LWP::UserAgent;
 use bytes;
@@ -200,11 +199,11 @@ sub sysreadfull($$$)
 		my $i = sysread($file, $_[1], $len - $n, $n);
 		if (defined($i)) {
 			if ($i == 0) {
-				return 0;
+				return $n;
 			} else {
 				$n += $i;
 			}
-		} elsif ($! == EINTR) {
+		} elsif ($!{EINTR}) {
 			redo;
 		} else {
 			return undef;
@@ -222,7 +221,7 @@ sub syswritefull($$)
 		my $i = syswrite($file, $_[1], $len - $n, $n);
 		if (defined($i)) {
 			$n += $i;
-		} elsif ($! == EINTR) {
+		} elsif ($!{EINTR}) {
 			redo;
 		} else {
 			return undef;
