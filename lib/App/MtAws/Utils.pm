@@ -20,7 +20,7 @@
 
 package App::MtAws::Utils;
 
-our $VERSION = '0.975_03';
+our $VERSION = '0.975_04';
 
 use strict;
 use warnings;
@@ -206,7 +206,7 @@ sub sysreadfull($$$)
 		} elsif ($!{EINTR}) {
 			redo;
 		} else {
-			return undef;
+			return $n ? $n : undef;
 		}
 	}
 	return $n;
@@ -224,7 +224,7 @@ sub syswritefull($$)
 		} elsif ($!{EINTR}) {
 			redo;
 		} else {
-			return undef;
+			return $n ? $n : undef;
 		}
 	}
 	return $n;

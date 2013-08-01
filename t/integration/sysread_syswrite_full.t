@@ -25,7 +25,7 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 54;
+use Test::More tests => 60;
 use Encode;
 use FindBin;
 use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
@@ -36,7 +36,22 @@ use TestUtils;
 use Carp;
 use Time::HiRes qw/usleep/;
 
-warning_fatal();
+#warning_fatal();
+
+{
+	my $mtroot = get_temp_dir();
+	open(my $tmp, ">", "$mtroot/infile") or confess;
+	close $tmp;
+	open(my $in, "<", "$mtroot/infile") or confess;
+	is sysread($in, my $buf, 1), 0;
+	is $buf, '', "sysread initialize buffer to empty string";
+
+	is sysreadfull($in, my $buf2, 1), 0;
+	is $buf2, '', "sysreadfull initialize buffer to empty string";
+
+	is read($in, my $buf3, 1), 0;
+	is $buf3, '', "read initialize buffer to empty string";
+}
 
 my $redef = 1;
 my $is_ualarm = Time::HiRes::d_ualarm();
@@ -110,7 +125,7 @@ for my $redef (0, 1) {
 
 	my $e = 1e-6;
 	SKIP: {
-		skip "Cannot test due to this perl bugs", 20 if $redef && ( ($] < 5.01-$e) or ( ($] > 5.014-$e) && ($] < 5.016-$e) ) );
+		skip "Cannot test due to some perl bugs", 20 if $redef && ( ($] < 5.01-$e) or ( ($] > 5.014-$e) && ($] < 5.016-$e) ) );
 		local $SIG{ALRM} = sub { print STDERR "SIG $$\n" };
 		my $sample = 'abxhrtf6';
 		my $full_sample = 'abxhrtf6' x (8192-7);

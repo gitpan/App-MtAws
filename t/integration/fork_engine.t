@@ -99,10 +99,9 @@ fork_engine_test 1,
 	child => sub {
 		my ($in, $out) = @_;
 		print $out "ready\n";
-		<$in>; # TODO: signal can be blocked here.. better hack something with select+timeout
+
+		usleep 10_000 while(1); # waiting for signal to arrive from terminate_children
 	};
-
-
 
 
 my @child_signals = (POSIX::SIGUSR2, POSIX::SIGINT, POSIX::SIGHUP, POSIX::SIGTERM);
