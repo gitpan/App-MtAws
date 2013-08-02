@@ -20,7 +20,7 @@
 
 package App::MtAws::LineProtocol;
 
-our $VERSION = '0.975_04';
+our $VERSION = '0.975_05';
 
 use strict;
 use warnings;
