@@ -20,7 +20,7 @@
 
 package App::MtAws::ForkEngine;
 
-our $VERSION = '0.975_05';
+our $VERSION = '0.981';
 
 use strict;
 use warnings;
@@ -212,6 +212,6 @@ sub terminate_children
 	$SIG{INT} = $SIG{USR2}='IGNORE';
 	kill (POSIX::SIGUSR2, keys %{$self->{children}}); # TODO: we terminate all children with SIGUSR2 even on normal exit
 	$SIG{TERM} = 'DEFAULT';
-	while( wait() != -1 ){ print STDERR "wait\n"};
+	while( wait() != -1 ){};
 }
 1;
