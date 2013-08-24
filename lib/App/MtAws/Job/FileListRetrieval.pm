@@ -18,9 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::FileListRetrievalJob;
+package App::MtAws::Job::FileListRetrieval;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;

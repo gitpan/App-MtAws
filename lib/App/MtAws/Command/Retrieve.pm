@@ -18,9 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::RetrieveCommand;
+package App::MtAws::Command::Retrieve;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
@@ -28,6 +28,7 @@ use utf8;
 use Carp;
 use App::MtAws::ForkEngine qw/with_forks fork_engine/;
 use App::MtAws::Utils;
+use App::MtAws::Job::FileListRetrieval;
 
 sub run
 {
@@ -35,9 +36,9 @@ sub run
 	confess unless $j->{use_active_retrievals};
 	with_forks !$options->{'dry-run'}, $options, sub {
 		$j->read_journal(should_exist => 1);
-		
+
 		my @filelist = get_file_list($options, $j);
-		
+
 		if (@filelist) {
 			if ($options->{'dry-run'}) {
 				for (@filelist) {
@@ -45,7 +46,7 @@ sub run
 				}
 			} else {
 				$j->open_for_write();
-				my $ft = App::MtAws::JobProxy->new(job => App::MtAws::FileListRetrievalJob->new(archives => \@filelist ));
+				my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::FileListRetrieval->new(archives => \@filelist ));
 				my ($R) = fork_engine->{parent_worker}->process_task($ft, $j);
 				die unless $R;
 				$j->close_for_write();

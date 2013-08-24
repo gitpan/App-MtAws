@@ -18,9 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::FileFinishJob;
+package App::MtAws::Job::InventoryDownload;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
@@ -33,11 +33,7 @@ sub new
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	$self->{upload_id}||die;
-	$self->{filesize}||die;
-	defined($self->{mtime})||die;
-	defined($self->{relfilename})||die;
-	$self->{th}||die;
+	$self->{job_id}||die;
 	$self->{raised} = 0;
 	return $self;
 }
@@ -50,15 +46,7 @@ sub get_task
 		return ("wait");
 	} else {
 		$self->{raised} = 1;
-		$self->{th}->calc_tree();
-		$self->{final_hash} = $self->{th}->get_final_hash();
-		return ("ok", App::MtAws::Task->new(id => "finish_upload",action=>"finish_upload", data => {
-			upload_id => $self->{upload_id},
-			filesize => $self->{filesize},
-			mtime => $self->{mtime},
-			relfilename => $self->{relfilename},
-			final_hash => $self->{final_hash}
-		} ));
+		return ("ok", App::MtAws::Task->new(id => 'inventory_download', action=>"inventory_download_job", data => { job_id => $self->{job_id} }));
 	}
 }
 
@@ -67,14 +55,10 @@ sub finish_task
 {
 	my ($self, $task) = @_;
 	if ($self->{raised}) {
-		if ($self->{finish_cb}) {
-			return ("ok replace", $self->{finish_cb}->($task));
-		} else {
-			return ("done");
-		}
+		return ("done");
 	} else {
 		die;
 	}
 }
-	
+
 1;

@@ -20,7 +20,7 @@
 
 package App::MtAws::FileVersions;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
@@ -82,7 +82,7 @@ sub latest
 	$#$self == -1 ? undef : $self->[-1];
 }
 
-# TODO: NOT USED
+# TODO: NOT USED (YET!)
 sub delete_by_archive_id
 {
 	my ($self, $archive_id) = @_;

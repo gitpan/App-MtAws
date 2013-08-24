@@ -18,31 +18,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::FileUploadJob;
+package App::MtAws::Job::SegmentDownload;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
-use App::MtAws::FileFinishJob;
+use App::MtAws::Utils;
+use App::MtAws::IntermediateFile;
 use Carp;
-
 
 sub new
 {
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	defined($self->{relfilename})||die;
-	$self->{partsize}||die;
-	defined($self->{mtime})||die;
-	$self->{upload_id}||confess;
-	$self->{fh}||die;
+	$self->{archive}||die;
+	$self->{pending}={};
 	$self->{all_raised} = 0;
 	$self->{position} = 0;
-	$self->{th} = App::MtAws::TreeHash->new();
+	$self->{tempfile} = undef;
 	return $self;
 }
 
@@ -53,36 +50,39 @@ sub get_task
 	if ($self->{all_raised}) {
 		return ("wait");
 	} else {
-		my $r = read($self->{fh}, my $data, $self->{partsize});
-		if (!defined($r)) {
-			die;
-		} elsif ($r > 0) {
-			my $part_th = App::MtAws::TreeHash->new(); #TODO: We calc sha twice for same data chunk here
-			$part_th->eat_data(\$data);
-			$part_th->calc_tree();
+		my $end_position = $self->{archive}{size} - 1;
+		if ($self->{position} <= $end_position) {
+			my $download_size = $end_position - $self->{position} + 1;
+			my $segment_size = $self->{file_downloads}{'segment-size'}*1048576 or confess;
+			$download_size = $segment_size if $download_size > $segment_size;
+			my $archive = $self->{archive};
 
-			my $part_final_hash = $part_th->get_final_hash();
-			my $task = App::MtAws::Task->new(id => $self->{position}, action=>"upload_part", data => {
-				start => $self->{position},
-				upload_id => $self->{upload_id},
-				part_final_hash => $part_final_hash,
-				relfilename => $self->{relfilename}
-			}, attachment => \$data,
-			);
-			$self->{position} += $r;
+
+			$self->{i_tmp} = App::MtAws::IntermediateFile->new(target_file => $archive->{filename}, mtime => $archive->{mtime})
+				unless defined($self->{i_tmp});
+
+			my $task = App::MtAws::Task->new(id => $self->{position}, action=>"segment_download_job", data => {
+				archive_id => $archive->{archive_id}, relfilename => $archive->{relfilename},
+				filename => $archive->{filename}, jobid => $archive->{jobid},
+				position => $self->{position}, download_size => $download_size, tempfile => $self->{i_tmp}->tempfilename
+			});
+			$self->{position} += $download_size;
 			$self->{uploadparts} ||= {};
 			$self->{uploadparts}->{$task->{id}} = 1;
-			$self->{th}->eat_data(\$data);
+			confess unless $task;
+			$self->{all_raised} = 1 if $self->{position} == $end_position + 1;
 			return ("ok", $task);
-		} else {
+		} elsif ($self->{position} == $end_position + 1) {
 			confess "Unexpected: zero-size archive" unless ($self->{position});
 			$self->{all_raised} = 1;
 			if (scalar keys %{$self->{uploadparts}} == 0) {
-				# TODO: why do we have to have two FileFinishJob->new ??
-				return ("ok replace", App::MtAws::FileFinishJob->new(finish_cb => $self->{finish_cb}, upload_id => $self->{upload_id}, mtime => $self->{mtime}, filesize => $self->{position}, relfilename => $self->{relfilename}, th => $self->{th}));
+				# TODO: why do we have to have two do_finish()?
+				return $self->do_finish();
 			} else {
 				return ("wait");
 			}
+		} else {
+			confess "$self->{position} != ".($end_position+1);
 		}
 	}
 }
@@ -91,12 +91,22 @@ sub get_task
 sub finish_task
 {
 	my ($self, $task) = @_;
+	# write taks->attachment to position position
 	delete $self->{uploadparts}->{$task->{id}};
 	if ($self->{all_raised} && scalar keys %{$self->{uploadparts}} == 0) {
-		return ("ok replace", App::MtAws::FileFinishJob->new(finish_cb => $self->{finish_cb}, upload_id => $self->{upload_id}, mtime => $self->{mtime}, relfilename => $self->{relfilename}, filename => $self->{filename}, filesize => $self->{position}, th => $self->{th}));
+		return $self->do_finish();
 	} else {
 		return ("ok");
 	}
+}
+
+sub do_finish
+{
+	my ($self) = @_;
+	confess unless defined($self->{i_tmp});
+	$self->{i_tmp}->make_permanent;
+	undef $self->{i_tmp};
+	return ("done");
 }
 
 1;

@@ -18,31 +18,24 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::FileVerifyAndUploadJob;
+package App::MtAws::Job::FileListDelete;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
-use App::MtAws::FileCreateJob;
-use Carp;
-use App::MtAws::Exceptions;
-use App::MtAws::Utils;
-use App::MtAws::TreeHash;
 
 sub new
 {
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	defined($self->{filename})||die;
-	defined($self->{relfilename})||die;
-	defined($self->{delete_after_upload})||die;
-	$self->{treehash}||die;
-	$self->{partsize}||die;
-	$self->{raised} = 0;
+	$self->{archives}||die;
+	$self->{pending}={};
+	$self->{all_raised} = 0;
+	$self->{position} = 0;
 	return $self;
 }
 
@@ -50,13 +43,20 @@ sub new
 sub get_task
 {
 	my ($self) = @_;
-	if ($self->{raised}) {
+	if ($self->{all_raised}) {
 		return ("wait");
 	} else {
-		$self->{raised} = 1;
-		return ("ok", App::MtAws::Task->new(id => "verify_file", action=>"verify_file", data => {
-			map { $_ => $self->{$_} } qw/filename relfilename treehash/
-		} ));
+		if (scalar @{$self->{archives}}) {
+			my $archive = shift @{$self->{archives}};
+			my $task = App::MtAws::Task->new(id => $archive->{archive_id}, action=>"delete_archive", data => {
+				archive_id => $archive->{archive_id}, relfilename => $archive->{relfilename}
+			});
+			$self->{pending}->{$archive->{archive_id}}=1;
+			$self->{all_raised} = 1 unless scalar @{$self->{archives}};
+			return ("ok", $task);
+		} else {
+			die;
+		}
 	}
 }
 
@@ -64,33 +64,18 @@ sub get_task
 sub finish_task
 {
 	my ($self, $task) = @_;
-	if ($self->{raised}) {
-		confess unless defined($task->{result}{match});
-		
-		if ($task->{result}{match}) {
-			return ('done');
-		} else {
-			return ("ok replace", App::MtAws::FileCreateJob->new(
-				map { $_ => $self->{$_} } qw/filename relfilename partsize/,
-				$self->{delete_after_upload} ?
-					(finish_cb => sub {
-						App::MtAws::FileListDeleteJob->new(archives => [{
-							archive_id => $self->{archive_id}, relfilename => $self->{relfilename}
-						}])
-					})
-				:
-					()
-			));
-		}
+	delete $self->{pending}->{$task->{id}};
+	if ($self->{all_raised} && scalar keys %{$self->{pending}} == 0) {
+		return ("done");
 	} else {
-		die;
+		return ("ok");
 	}
 }
 
 sub will_do
 {
 	my ($self) = @_;
-	"Will VERIFY treehash and UPLOAD $self->{filename} if modified";
+	map { "Will DELETE archive $_->{archive_id} (filename $_->{relfilename})" } @{$self->{archives}};
 }
 	
 1;

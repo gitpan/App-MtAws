@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # mt-aws-glacier - Amazon Glacier sync client
 # Copyright (C) 2012-2013  Victor Efimov
@@ -83,12 +83,12 @@ SKIP: {
 		journal_file => $options->{journal},
 		root_dir => $options->{dir},
 		filter => $options->{filters}{parsed});
-	require App::MtAws::CheckLocalHashCommand;
+	require App::MtAws::Command::CheckLocalHash;
 
 	my $out='';
 	ok ! defined capture_stdout $out, sub {
 		eval {
-			App::MtAws::CheckLocalHashCommand::run($options, $j);
+			App::MtAws::Command::CheckLocalHash::run($options, $j);
 			1;
 		};
 	};

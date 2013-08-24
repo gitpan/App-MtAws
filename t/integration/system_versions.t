@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # mt-aws-glacier - Amazon Glacier sync client
 # Copyright (C) 2012-2013  Victor Efimov
@@ -22,20 +22,17 @@
 
 use strict;
 use warnings;
-use Test::More tests => 24;
+use Test::More tests => 18;
 use FindBin;
 use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use TestUtils;
 use App::MtAws;
 
-my @dynamic_modules = qw/
-	SyncCommand
-	RetrieveCommand
-	CheckLocalHashCommand
-	DownloadInventoryCommand
-	CheckLocalHashCommand
-	DownloadInventoryCommand
-	RetrieveCommand
+my @dynamic_modules = map { my $a = $_;  $a =~ s!::!/!g; $a; } qw/
+	Command::Sync
+	Command::Retrieve
+	Command::CheckLocalHash
+	Command::DownloadInventory
 /;
 
 

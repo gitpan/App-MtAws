@@ -18,15 +18,16 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::CreateVaultJob;
+package App::MtAws::Job::RetrievalDownload;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
-use File::stat;
+use Carp;
+use App::MtAws::Utils;
 
 
 sub new
@@ -34,8 +35,10 @@ sub new
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	$self->{name}||die;
-	$self->{raised} = 0;
+	$self->{archives}||die;
+	$self->{pending}={};
+	$self->{all_raised} = 0;
+	$self->{position} = 0;
 	return $self;
 }
 
@@ -43,11 +46,22 @@ sub new
 sub get_task
 {
 	my ($self) = @_;
-	if ($self->{raised}) {
+	if ($self->{all_raised}) {
 		return ("wait");
 	} else {
-		$self->{raised} = 1;
-		return ("ok", App::MtAws::Task->new(id => 'create_vault', action=>"create_vault_job", data => { name => $self->{name} }));
+		if (scalar @{$self->{archives}}) {
+			my $archive = shift @{$self->{archives}};
+			my $task = App::MtAws::Task->new(id => $archive->{jobid}, action=>"retrieval_download_job", data => {
+				archive_id => $archive->{archive_id}, relfilename => $archive->{relfilename},
+				filename => $archive->{filename}, mtime => $archive->{mtime}, jobid => $archive->{jobid},
+				size => $archive->{size}, treehash => $archive->{treehash}
+			});
+			$self->{pending}->{$archive->{jobid}}=1;
+			$self->{all_raised} = 1 unless scalar @{$self->{archives}};
+			return ("ok", $task);
+		} else {
+			die;
+		}
 	}
 }
 
@@ -55,11 +69,15 @@ sub get_task
 sub finish_task
 {
 	my ($self, $task) = @_;
-	if ($self->{raised}) {
+	my $mtime = $task->{data}{mtime};
+	utime $mtime, $mtime, binaryfilename($task->{data}{filename}) or confess if defined $mtime;
+
+	delete $self->{pending}->{$task->{id}};
+	if ($self->{all_raised} && scalar keys %{$self->{pending}} == 0) {
 		return ("done");
 	} else {
-		die;
+		return ("ok");
 	}
 }
-	
+
 1;

@@ -18,9 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::DownloadInventoryCommand;
+package App::MtAws::Command::DownloadInventory;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
@@ -31,13 +31,14 @@ use App::MtAws::ForkEngine  qw/with_forks fork_engine/;
 use App::MtAws::TreeHash;
 use App::MtAws::Exceptions;
 use App::MtAws::Journal;
+use App::MtAws::Job::InventoryFetch;
 
 sub run
 {
 	my ($options, $j) = @_;
 	with_forks 1, $options, sub {
 
-		my $ft = App::MtAws::JobProxy->new(job => App::MtAws::InventoryFetchJob->new());
+		my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::InventoryFetch->new());
 		my ($R, $attachmentref) = fork_engine->{parent_worker}->process_task($ft, undef);
 		# here we can have response from both JobList or Inventory output..
 		# JobList looks like 'response' => '{"JobList":[],"Marker":null}'

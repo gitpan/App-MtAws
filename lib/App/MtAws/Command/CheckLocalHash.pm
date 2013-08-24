@@ -18,9 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::CheckLocalHashCommand;
+package App::MtAws::Command::CheckLocalHash;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
@@ -65,7 +65,7 @@ sub run
 							next;
 						}
 						my $th = App::MtAws::TreeHash->new();
-						$th->eat_file($F); # TODO: don't calc tree hash if size differs!
+						$th->eat_file($F);
 						close $F or confess;
 						$th->calc_tree();
 

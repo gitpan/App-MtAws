@@ -18,15 +18,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::FileCreateJob;
+package App::MtAws::Job::FileCreate;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
-use App::MtAws::FileUploadJob;
+use App::MtAws::Job::FileUpload;
 use File::stat;
 use Time::localtime;
 use Carp;
@@ -85,7 +85,7 @@ sub finish_task
 {
 	my ($self, $task) = @_;
 	if ($self->{raised}) {
-		return ("ok replace", App::MtAws::FileUploadJob->new(
+		return ("ok replace", App::MtAws::Job::FileUpload->new(
 			fh => $self->{fh},
 			finish_cb => $self->{finish_cb},
 			relfilename => $self->{relfilename},

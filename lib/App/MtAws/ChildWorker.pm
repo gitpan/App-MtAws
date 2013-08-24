@@ -20,7 +20,7 @@
 
 package App::MtAws::ChildWorker;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use App::MtAws::LineProtocol;
 use App::MtAws::GlacierRequest;
@@ -32,8 +32,6 @@ use utf8;
 use Carp;
 use IO::Select;
 use POSIX;
-use bytes;
-no bytes;
 
 sub new
 {

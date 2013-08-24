@@ -18,27 +18,31 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::RetrievalDownloadJob;
+package App::MtAws::Job::FileVerifyAndUpload;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
+use App::MtAws::Job::FileCreate;
 use Carp;
+use App::MtAws::Exceptions;
 use App::MtAws::Utils;
-
+use App::MtAws::TreeHash;
 
 sub new
 {
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	$self->{archives}||die;
-	$self->{pending}={};
-	$self->{all_raised} = 0;
-	$self->{position} = 0;
+	defined($self->{filename})||die;
+	defined($self->{relfilename})||die;
+	defined($self->{delete_after_upload})||die;
+	$self->{treehash}||die;
+	$self->{partsize}||die;
+	$self->{raised} = 0;
 	return $self;
 }
 
@@ -46,22 +50,13 @@ sub new
 sub get_task
 {
 	my ($self) = @_;
-	if ($self->{all_raised}) {
+	if ($self->{raised}) {
 		return ("wait");
 	} else {
-		if (scalar @{$self->{archives}}) {
-			my $archive = shift @{$self->{archives}};
-			my $task = App::MtAws::Task->new(id => $archive->{jobid}, action=>"retrieval_download_job", data => {
-				archive_id => $archive->{archive_id}, relfilename => $archive->{relfilename},
-				filename => $archive->{filename}, mtime => $archive->{mtime}, jobid => $archive->{jobid},
-				size => $archive->{size}, treehash => $archive->{treehash}
-			});
-			$self->{pending}->{$archive->{jobid}}=1;
-			$self->{all_raised} = 1 unless scalar @{$self->{archives}};
-			return ("ok", $task);
-		} else {
-			die;
-		}
+		$self->{raised} = 1;
+		return ("ok", App::MtAws::Task->new(id => "verify_file", action=>"verify_file", data => {
+			map { $_ => $self->{$_} } qw/filename relfilename treehash/
+		} ));
 	}
 }
 
@@ -69,15 +64,33 @@ sub get_task
 sub finish_task
 {
 	my ($self, $task) = @_;
-	my $mtime = $task->{data}{mtime};
-	utime $mtime, $mtime, binaryfilename($task->{data}{filename}) or confess if defined $mtime;
-
-	delete $self->{pending}->{$task->{id}};
-	if ($self->{all_raised} && scalar keys %{$self->{pending}} == 0) {
-		return ("done");
+	if ($self->{raised}) {
+		confess unless defined($task->{result}{match});
+		
+		if ($task->{result}{match}) {
+			return ('done');
+		} else {
+			return ("ok replace", App::MtAws::Job::FileCreate->new(
+				map { $_ => $self->{$_} } qw/filename relfilename partsize/,
+				$self->{delete_after_upload} ?
+					(finish_cb => sub {
+						App::MtAws::Job::FileListDelete->new(archives => [{
+							archive_id => $self->{archive_id}, relfilename => $self->{relfilename}
+						}])
+					})
+				:
+					()
+			));
+		}
 	} else {
-		return ("ok");
+		die;
 	}
 }
 
+sub will_do
+{
+	my ($self) = @_;
+	"Will VERIFY treehash and UPLOAD $self->{filename} if modified";
+}
+	
 1;

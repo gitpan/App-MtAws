@@ -18,9 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::SyncCommand;
+package App::MtAws::Command::Sync;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
@@ -35,9 +35,9 @@ use constant SHOULD_NOACTION => 0;
 use App::MtAws::JobProxy;
 use App::MtAws::JobListProxy;
 use App::MtAws::JobIteratorProxy;
-use App::MtAws::FileCreateJob;
-use App::MtAws::FileListDeleteJob;
-use App::MtAws::FileVerifyAndUploadJob;
+use App::MtAws::Job::FileCreate;
+use App::MtAws::Job::FileListDelete;
+use App::MtAws::Job::FileVerifyAndUpload;
 use App::MtAws::ForkEngine  qw/with_forks fork_engine/;
 use App::MtAws::Journal;
 use App::MtAws::Utils;
@@ -92,17 +92,17 @@ sub next_modified
 
 		if ($should_upload == SHOULD_TREEHASH) {
 			return App::MtAws::JobProxy->new(job=>
-				App::MtAws::FileVerifyAndUploadJob->new(filename => $absfilename,
+				App::MtAws::Job::FileVerifyAndUpload->new(filename => $absfilename,
 					relfilename => $relfilename, partsize => ONE_MB*$options->{partsize},
 					delete_after_upload => 1,
 					archive_id => $file->{archive_id},
 					treehash => $file->{treehash}
 			));
 		} elsif ($should_upload == SHOULD_CREATE) {
-			return App::MtAws::JobProxy->new(job=> App::MtAws::FileCreateJob->new(
+			return App::MtAws::JobProxy->new(job=> App::MtAws::Job::FileCreate->new(
 				filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$options->{partsize},
 				(finish_cb => sub {
-					App::MtAws::FileListDeleteJob->new(archives => [{
+					App::MtAws::Job::FileListDelete->new(archives => [{
 						archive_id => $file->{archive_id}, relfilename => $relfilename
 					}])
 				})
@@ -120,7 +120,7 @@ sub next_missing
 {
 	my ($options, $j) = @_;
 	if (my $rec = shift @{ $j->{listing}{missing} }) {
-		App::MtAws::FileListDeleteJob->new(archives => [{
+		App::MtAws::Job::FileListDelete->new(archives => [{
 			archive_id => $j->latest($rec->{relfilename})->{archive_id}, relfilename => $rec->{relfilename}
 		}]);
 	} else {
@@ -134,7 +134,7 @@ sub next_new
 	if (my $rec = shift @{ $j->{listing}{new} }) {
 		my ($absfilename, $relfilename) = ($j->absfilename($rec->{relfilename}), $rec->{relfilename});
 		App::MtAws::JobProxy->new(job =>
-			App::MtAws::FileCreateJob->new(filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$options->{partsize}));
+			App::MtAws::Job::FileCreate->new(filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$options->{partsize}));
 	} else {
 		return;
 	}

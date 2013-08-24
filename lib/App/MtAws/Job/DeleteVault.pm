@@ -18,16 +18,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::SingleDownloadJob;
+package App::MtAws::Job::DeleteVault;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
-use App::MtAws::Utils;
-use Carp;
 
 
 sub new
@@ -35,7 +33,7 @@ sub new
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	$self->{archive}||confess;
+	$self->{name}||die;
 	$self->{raised} = 0;
 	return $self;
 }
@@ -48,11 +46,7 @@ sub get_task
 		return ("wait");
 	} else {
 		$self->{raised} = 1;
-		my $archive = $self->{archive};
-		return ("ok",  App::MtAws::Task->new(id => $archive->{jobid}, action=>"retrieval_download_job", data => {
-			archive_id => $archive->{archive_id}, relfilename => $archive->{relfilename}, filename => $archive->{filename},
-			mtime => $archive->{mtime}, jobid => $archive->{jobid}, size => $archive->{size}, treehash => $archive->{treehash}
-		}));
+		return ("ok", App::MtAws::Task->new(id => 'delete_vault', action=>"delete_vault_job", data => { name => $self->{name} }));
 	}
 }
 
@@ -61,10 +55,9 @@ sub finish_task
 {
 	my ($self, $task) = @_;
 	if ($self->{raised}) {
-		my $mtime = $task->{data}{mtime};
 		return ("done");
 	} else {
-		confess;
+		die;
 	}
 }
 

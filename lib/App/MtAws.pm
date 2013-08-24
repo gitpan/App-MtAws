@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 our $VERSION_MATURITY = "beta";
 
 use constant ONE_MB => 1024*1024;
@@ -47,13 +47,11 @@ use constant ONE_MB => 1024*1024;
 use App::MtAws::ParentWorker;
 use App::MtAws::ChildWorker;
 use App::MtAws::JobProxy;
-use App::MtAws::FileCreateJob;
-use App::MtAws::FileListDeleteJob;
-use App::MtAws::FileListRetrievalJob;
-use App::MtAws::RetrievalFetchJob;
+use App::MtAws::Job::FileCreate;
+use App::MtAws::Job::FileListDelete;
+use App::MtAws::Job::RetrievalFetch;
 use App::MtAws::JobListProxy;
-use App::MtAws::RetrieveInventoryJob;
-use App::MtAws::InventoryFetchJob;
+use App::MtAws::Job::RetrieveInventory;
 use File::Find ;
 use File::Spec;
 use App::MtAws::Journal;
@@ -61,8 +59,8 @@ use App::MtAws::ConfigDefinition;
 use App::MtAws::ForkEngine qw/with_forks fork_engine/;
 use Carp;
 use IO::Handle;
-use App::MtAws::CreateVaultJob;
-use App::MtAws::DeleteVaultJob;
+use App::MtAws::Job::CreateVault;
+use App::MtAws::Job::DeleteVault;
 use App::MtAws::Utils;
 use App::MtAws::Exceptions;
 use PerlIO::encoding;
@@ -70,8 +68,9 @@ use PerlIO::encoding;
 sub check_module_versions
 {
 	for (keys %INC) {
-		if (/^App\/MtAws\/(.*)\.pmc?$/) {
-			my $module = "App::MtAws::$1";
+		if (my ($mod) = /^App\/MtAws\/(.*)\.pmc?$/) {
+			$mod =~ s!/!::!g;
+			my $module = "App::MtAws::$mod";
 			my $got = $module->VERSION;
 			$got = 'undef' unless defined $got;
 			die "FATAL: wrong version of $module, expected $VERSION, found $got" unless $got eq $VERSION;
@@ -96,13 +95,10 @@ sub print_system_modules_version
 sub load_all_dynamic_modules
 {
 	# we load here all dynamically loaded modules, to check that installation is correct.
-	require App::MtAws::SyncCommand;
-	require App::MtAws::RetrieveCommand;
-	require App::MtAws::CheckLocalHashCommand;
-	require App::MtAws::DownloadInventoryCommand;
-	require App::MtAws::CheckLocalHashCommand;
-	require App::MtAws::DownloadInventoryCommand;
-	require App::MtAws::RetrieveCommand;
+	require App::MtAws::Command::Sync;
+	require App::MtAws::Command::Retrieve;
+	require App::MtAws::Command::CheckLocalHash;
+	require App::MtAws::Command::DownloadInventory;
 	check_module_versions;
 }
 
@@ -135,7 +131,7 @@ sub process
 	if ($res->{warnings}) {
 		while (@{$res->{warnings}}) {
 			my ($warning, $warning_text) = (shift @{$res->{warnings}}, shift @{$res->{warning_texts}});
-			print STDERR "WARNING: $warning_text\n"; # TODO: temporary disable warning
+			print STDERR "WARNING: $warning_text\n";
 		}
 	}
 	if ($res->{error_texts}) {
@@ -158,9 +154,9 @@ sub process
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{journal}, root_dir => $options->{dir},
 			filter => $options->{filters}{parsed}, leaf_optimization => $options->{'leaf-optimization'}, follow => $options->{'follow'});
 
-		require App::MtAws::SyncCommand;
+		require App::MtAws::Command::Sync;
 		check_module_versions;
-		App::MtAws::SyncCommand::run($options, $j);
+		App::MtAws::Command::Sync::run($options, $j);
 
 	} elsif ($action eq 'upload-file') {
 
@@ -190,11 +186,11 @@ END
 			$j->open_for_write();
 
 			my $ft = ($options->{'data-type'} eq 'filename') ?
-				App::MtAws::JobProxy->new(job => App::MtAws::FileCreateJob->new(
+				App::MtAws::JobProxy->new(job => App::MtAws::Job::FileCreate->new(
 					filename => $options->{filename},
 					relfilename => $relfilename,
 					partsize => ONE_MB*$partsize)) :
-				App::MtAws::JobProxy->new(job => App::MtAws::FileCreateJob->new(
+				App::MtAws::JobProxy->new(job => App::MtAws::Job::FileCreate->new(
 					stdin => 1,
 					relfilename => $relfilename,
 					partsize => ONE_MB*$partsize));
@@ -218,7 +214,7 @@ END
 				} else {
 					$j->open_for_write();
 					my @filelist = map { {archive_id => $_, relfilename =>$archives->{$_}->{relfilename} } } keys %{$archives};
-					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::FileListDeleteJob->new(archives => \@filelist ));
+					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::FileListDelete->new(archives => \@filelist ));
 					my ($R) = fork_engine->{parent_worker}->process_task($ft, $j);
 					die unless $R;
 					$j->close_for_write();
@@ -232,9 +228,9 @@ END
 		confess unless $options->{'max-number-of-files'};
 
 
-		require App::MtAws::RetrieveCommand;
+		require App::MtAws::Command::Retrieve;
 		check_module_versions;
-		App::MtAws::RetrieveCommand::run($options, $j);
+		App::MtAws::Command::Retrieve::run($options, $j);
 	} elsif ($action eq 'restore-completed') {
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{journal}, root_dir => $options->{dir}, filter => $options->{filters}{parsed});
 
@@ -259,7 +255,7 @@ END
 						print "Will DOWNLOAD (if available) archive $_->{archive_id} (filename $_->{relfilename})\n" for ($j->latest($_));
 					}
 				} else {
-					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::RetrievalFetchJob->new(file_downloads => $options->{file_downloads}, archives => \%filelist ));
+					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::RetrievalFetch->new(file_downloads => $options->{file_downloads}, archives => \%filelist ));
 					my ($R) = fork_engine->{parent_worker}->process_task($ft, $j);
 					die unless $R;
 				}
@@ -269,34 +265,34 @@ END
 		}
 	} elsif ($action eq 'check-local-hash') {
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{journal}, root_dir => $options->{dir}, filter => $options->{filters}{parsed});
-		require App::MtAws::CheckLocalHashCommand;
+		require App::MtAws::Command::CheckLocalHash;
 		check_module_versions;
-		App::MtAws::CheckLocalHashCommand::run($options, $j);
+		App::MtAws::Command::CheckLocalHash::run($options, $j);
 	} elsif ($action eq 'retrieve-inventory') {
 		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::RetrieveInventoryJob->new());
+			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::RetrieveInventory->new());
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'download-inventory') {
 		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
 		my $j = App::MtAws::Journal->new(%journal_opts, journal_file => $options->{'new-journal'});
-		require App::MtAws::DownloadInventoryCommand;
+		require App::MtAws::Command::DownloadInventory;
 		check_module_versions;
-		App::MtAws::DownloadInventoryCommand::run($options, $j);
+		App::MtAws::Command::DownloadInventory::run($options, $j);
 	} elsif ($action eq 'create-vault') {
 		$options->{concurrency} = 1;
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::CreateVaultJob->new(name => $options->{'vault-name'}));
+			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::CreateVault->new(name => $options->{'vault-name'}));
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'delete-vault') {
 		$options->{concurrency} = 1;
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::DeleteVaultJob->new(name => $options->{'vault-name'}));
+			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::DeleteVault->new(name => $options->{'vault-name'}));
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'help') {

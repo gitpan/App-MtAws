@@ -18,24 +18,27 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::FileListDeleteJob;
+package App::MtAws::Job::FileFinish;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
 
+
 sub new
 {
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	$self->{archives}||die;
-	$self->{pending}={};
-	$self->{all_raised} = 0;
-	$self->{position} = 0;
+	$self->{upload_id}||die;
+	$self->{filesize}||die;
+	defined($self->{mtime})||die;
+	defined($self->{relfilename})||die;
+	$self->{th}||die;
+	$self->{raised} = 0;
 	return $self;
 }
 
@@ -43,20 +46,19 @@ sub new
 sub get_task
 {
 	my ($self) = @_;
-	if ($self->{all_raised}) {
+	if ($self->{raised}) {
 		return ("wait");
 	} else {
-		if (scalar @{$self->{archives}}) {
-			my $archive = shift @{$self->{archives}};
-			my $task = App::MtAws::Task->new(id => $archive->{archive_id}, action=>"delete_archive", data => {
-				archive_id => $archive->{archive_id}, relfilename => $archive->{relfilename}
-			});
-			$self->{pending}->{$archive->{archive_id}}=1;
-			$self->{all_raised} = 1 unless scalar @{$self->{archives}};
-			return ("ok", $task);
-		} else {
-			die;
-		}
+		$self->{raised} = 1;
+		$self->{th}->calc_tree();
+		$self->{final_hash} = $self->{th}->get_final_hash();
+		return ("ok", App::MtAws::Task->new(id => "finish_upload",action=>"finish_upload", data => {
+			upload_id => $self->{upload_id},
+			filesize => $self->{filesize},
+			mtime => $self->{mtime},
+			relfilename => $self->{relfilename},
+			final_hash => $self->{final_hash}
+		} ));
 	}
 }
 
@@ -64,18 +66,15 @@ sub get_task
 sub finish_task
 {
 	my ($self, $task) = @_;
-	delete $self->{pending}->{$task->{id}};
-	if ($self->{all_raised} && scalar keys %{$self->{pending}} == 0) {
-		return ("done");
+	if ($self->{raised}) {
+		if ($self->{finish_cb}) {
+			return ("ok replace", $self->{finish_cb}->($task));
+		} else {
+			return ("done");
+		}
 	} else {
-		return ("ok");
+		die;
 	}
-}
-
-sub will_do
-{
-	my ($self) = @_;
-	map { "Will DELETE archive $_->{archive_id} (filename $_->{relfilename})" } @{$self->{archives}};
 }
 	
 1;

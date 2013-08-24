@@ -18,14 +18,17 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::DeleteVaultJob;
+package App::MtAws::Job::InventoryFetch;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
 use utf8;
 use base qw/App::MtAws::Job/;
+use App::MtAws::Job::InventoryDownload;
+
+use JSON::XS;
 
 
 sub new
@@ -33,7 +36,6 @@ sub new
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	$self->{name}||die;
 	$self->{raised} = 0;
 	return $self;
 }
@@ -46,7 +48,7 @@ sub get_task
 		return ("wait");
 	} else {
 		$self->{raised} = 1;
-		return ("ok", App::MtAws::Task->new(id => 'delete_vault', action=>"delete_vault_job", data => { name => $self->{name} }));
+		return ("ok", App::MtAws::Task->new(id => "inventory_fetch",action=>"inventory_fetch_job", data => { marker => $self->{marker} } ));
 	}
 }
 
@@ -54,11 +56,27 @@ sub get_task
 sub finish_task
 {
 	my ($self, $task) = @_;
+	
 	if ($self->{raised}) {
-		return ("done");
+		my $json = JSON::XS->new->allow_nonref;
+		my $scalar = $json->decode( $task->{result}->{response} );
+		# https://forums.aws.amazon.com/thread.jspa?messageID=421246
+		for my $job (@{$scalar->{JobList}}) {
+			#print "$job->{Completed}|$job->{JobId}\n";
+			if ($job->{Action} eq 'InventoryRetrieval' && $job->{Completed} && $job->{StatusCode} eq 'Succeeded') {
+				return ("ok replace", App::MtAws::Job::InventoryDownload->new(job_id => $job->{JobId}));
+			}
+		}
+		
+		if ($scalar->{Marker}) {
+			return ("ok replace", App::MtAws::Job::InventoryFetch->new(marker => $scalar->{Marker}) );
+		} else {
+			# TODO: to handle the case when we don't have any inventory retrieved $task->{result}->{response}=undef;
+			return ("done");
+		}
 	} else {
 		die;
 	}
 }
-
+	
 1;

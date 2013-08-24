@@ -18,9 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::InventoryDownloadJob;
+package App::MtAws::Job::RetrieveInventory;
 
-our $VERSION = '0.981';
+our $VERSION = '0.981_01';
 
 use strict;
 use warnings;
@@ -33,7 +33,6 @@ sub new
 	my ($class, %args) = @_;
 	my $self = \%args;
 	bless $self, $class;
-	$self->{job_id}||die;
 	$self->{raised} = 0;
 	return $self;
 }
@@ -46,7 +45,7 @@ sub get_task
 		return ("wait");
 	} else {
 		$self->{raised} = 1;
-		return ("ok", App::MtAws::Task->new(id => 'inventory_download', action=>"inventory_download_job", data => { job_id => $self->{job_id} }));
+		return ("ok", App::MtAws::Task->new(id => 'retrieve_inventory', action=>"retrieve_inventory_job", data => {}));
 	}
 }
 
