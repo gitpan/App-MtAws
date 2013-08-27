@@ -20,9 +20,7 @@
 
 package App::MtAws::ParentWorker;
 
-our $VERSION = '0.981_01';
-
-use lib 'lib';
+our $VERSION = '1.000';
 
 use strict;
 use warnings;

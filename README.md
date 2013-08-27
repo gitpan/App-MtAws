@@ -13,7 +13,7 @@ Amazon Glacier is an archive/backup service with very low storage price. However
 
 ## Version
 
-* Version 0.981 beta (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
+* Version 1.000 (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
 
 [mt-aws glacier changelog]:https://github.com/vsespb/mt-aws-glacier/blob/master/ChangeLog
 
@@ -48,7 +48,7 @@ Amazon Glacier is an archive/backup service with very low storage price. However
 
 ## Production readiness
 
-* Not recommended to use in production until first "Release" version. Currently Beta.
+* After **one year** since first public version released, beta testing was finished and version 1.xxx released. Current project status is **non-beta**, **stable**.
 
 ## Installation/System requirements
 
@@ -800,4 +800,3 @@ Something like this (including permissions to create/delete vaults):
 #### EOF
 
 [![mt-aws glacier tracking pixel](https://mt-aws.com/mt-aws-glacier-transp.gif "mt-aws glacier tracking pixel")](http://mt-aws.com/)
-

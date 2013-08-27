@@ -20,7 +20,7 @@
 
 package App::MtAws::GlacierRequest;
 
-our $VERSION = '0.981_01';
+our $VERSION = '1.000';
 
 use strict;
 use warnings;
@@ -432,7 +432,7 @@ sub perform_lwp
 
 		my $ua = LWP::UserAgent->new(timeout => $self->{timeout});
 		$ua->protocols_allowed ( [ 'https' ] ) if $self->{protocol} eq 'https'; # Lets hard code this.
-		$ua->agent("mt-aws-glacier/${App::MtAws::VERSION}beta (http://mt-aws.com/) "); # use of App::MtAws::VERSION_MATURITY instead of 'beta' produce warning
+		$ua->agent("mt-aws-glacier/${App::MtAws::VERSION} (http://mt-aws.com/) "); # use of App::MtAws::VERSION_MATURITY produce warning
 		my $req = undef;
 		my $url = $self->{protocol} ."://$self->{host}$self->{url}";
 		$url = $self->{protocol} ."://$ENV{MTGLACIER_FAKE_HOST}$self->{url}" if $ENV{MTGLACIER_FAKE_HOST};
