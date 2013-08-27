@@ -20,7 +20,7 @@
 
 package App::MtAws::Utils;
 
-our $VERSION = '1.000';
+our $VERSION = '1.000_1';
 
 use strict;
 use warnings;
@@ -29,7 +29,6 @@ use File::Spec;
 use File::stat;
 use Carp;
 use Encode;
-use App::MtAws::Exceptions;
 use LWP::UserAgent;
 use bytes ();
 

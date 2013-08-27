@@ -25,13 +25,17 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 65;
+use Test::More tests => 154;
 use Test::Deep;
 use Encode;
 use FindBin;
+use Carp;
+use POSIX;
 use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use App::MtAws::Exceptions;
+use App::MtAws::Utils;
 use TestUtils;
+use I18N::Langinfo;
 
 warning_fatal();
 
@@ -42,6 +46,8 @@ cmp_deeply exception('mycode' => 'MyMessage', myvar => 1),
 	{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', myvar => 1};
 cmp_deeply exception('mycode' => 'MyMessage', myvar => 1, anothervar => 2),
 	{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', myvar => 1, anothervar => 2};
+cmp_deeply exception('mycode' => 'MyMessage', code => 'code2'),
+	{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'code2'};
 
 my $existing_exception = exception('xcode' => 'xmessage', myvar => 'xvar');
 
@@ -56,6 +62,66 @@ cmp_deeply exception($existing_exception, 'mycode' => 'MyMessage', myvar2 => 1),
 cmp_deeply exception($existing_exception, 'mycode' => 'MyMessage', myvar => 1, anothervar => 2),
 	{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', myvar => 1, anothervar => 2};
 
+# detecting wrong args
+{
+	ok ! eval { exception('mycode' => 'MyMessage', 'abc'); 1 };
+	like $@, qr/Malformed exception/;
+
+	ok ! eval { exception('mycode' => 'MyMessage', 'abc' => 'def', 'xyz'); 1 };
+	like $@, qr/Malformed exception/;
+}
+
+# parsing args with errno ERRNO - unit
+{
+	no warnings 'redefine';
+	local $! = EACCES;
+	local *App::MtAws::Exceptions::get_errno = sub { "checkme" };
+	cmp_deeply exception('mycode' => 'MyMessage', 'ERRNO'),
+		{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', errno => "checkme", errno_code => EACCES+0 };
+}
+# parsing args with errno ERRNO - integration
+{
+	my $expect_errno = get_errno(POSIX::strerror(EACCES)); # real integration test with current locale
+	local $! = EACCES;
+
+	cmp_deeply exception('mycode' => 'MyMessage', 'ERRNO'),
+		{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', errno => $expect_errno, errno_code => EACCES};
+
+	cmp_deeply exception('mycode' => 'MyMessage', 'ERRNO', A => 123),
+		{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', errno=> $expect_errno, errno_code => EACCES, A => 123};
+	cmp_deeply exception('mycode' => 'MyMessage', A => 123, 'ERRNO'),
+		{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', errno => $expect_errno, errno_code => EACCES, A => 123};
+	cmp_deeply exception('mycode' => 'MyMessage', A => 123, 'ERRNO', B => 456),
+		{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', errno => $expect_errno, errno_code => EACCES, A => 123, B => 456};
+
+
+	local $! = EACCES;
+	ok ! eval { exception('mycode' => 'MyMessage', ERRNO => 'xyz'); 1 };
+	like $@, qr/Malformed exception/;
+
+	local $! = EACCES;
+	ok ! eval { exception('mycode' => 'MyMessage', 'ERRNO', A => 123, 'xyz'); 1 };
+	like $@, qr/Malformed exception/;
+
+	local $! = EACCES;
+	ok ! eval { exception('mycode' => 'MyMessage', ERRNO => 'ERRNO'); 1 };
+	like $@, qr/already used/i;
+
+	local $! = EACCES;
+	ok ! eval { exception('mycode' => 'MyMessage', 'ERRNO', x => 'y', 'ERRNO'); 1 };
+	like $@, qr/already used/i;
+
+	local $! = EACCES;
+	cmp_deeply exception('mycode' => 'MyMessage', 'ERRNO', B => 'ERRNO'),
+		{ MTEXCEPTION => bool(1), message => 'MyMessage', code => 'mycode', errno => $expect_errno, errno_code => EACCES, B => 'ERRNO'};
+
+	my $r = exception('mycode' => 'MyMessage', 'ERRNO');
+	{
+		no warnings 'numeric';
+		is $r->{errno}+1, 1, "strip magick";
+	}
+	is "$r->{errno_code}", EACCES, "strip magick";
+}
 
 # get_exception
 
@@ -250,7 +316,146 @@ test_error {
 
 	# TODO: check also that 'next' is called!
 
+sub check_localized(&)
+{
+	local $@ = 'checkme';
+	local $! = EACCES;
+	shift->();
+	is $@, 'checkme', "should not clobber eval error";
+	is $!+0, EACCES, "should not clobber errno";
+}
 
+# test get_errno
+{
+	for my $enc(qw/CP1251 KOI8-R UTF-8/) {
+		local $App::MtAws::Exceptions::_errno_encoding = undef;
+		my $test_str = "тест";
+		my $bin_str = encode($enc, $test_str);
+		no warnings 'redefine';
+
+		local *App::MtAws::Exceptions::get_raw_errno = sub { $bin_str };
+		local *I18N::Langinfo::langinfo = sub { $enc };
+		check_localized {
+			is get_errno(), $test_str, "get_errno should work with encoding $enc";
+		};
+
+		local *I18N::Langinfo::langinfo = sub { confess };
+		check_localized {
+			is get_errno(), $test_str, "get_errno should re-use encoding, $enc";
+		};
+	}
+}
+
+# test get_errno with argument
+{
+	for my $enc(qw/CP1251 KOI8-R UTF-8/) {
+		local $App::MtAws::Exceptions::_errno_encoding = undef;
+		my $test_str = "тест";
+		my $bin_str = encode($enc, $test_str);
+		no warnings 'redefine';
+
+		local *I18N::Langinfo::langinfo = sub { $enc };
+		check_localized {
+			is get_errno($bin_str), $test_str, "get_errno (with arg) should work with encoding $enc";
+		};
+
+		local *I18N::Langinfo::langinfo = sub { confess };
+		check_localized {
+			is get_errno($bin_str), $test_str, "get_errno (with arg) should re-use encoding, $enc";
+		};
+	}
+}
+
+SKIP: {
+	skip "Only for HP-UX", 3 if $^O ne 'hpux';
+	my ($encode_enc, $i18_enc) = ('hp-roman8', 'roman8');
+	local $App::MtAws::Exceptions::_errno_encoding = undef;
+	my $test_str = "test";
+	my $bin_str = encode($encode_enc, $test_str);
+	no warnings 'redefine';
+
+	local *App::MtAws::Exceptions::get_raw_errno = sub { $bin_str };
+	local *I18N::Langinfo::CODESET = sub { "codeset" };
+	local *I18N::Langinfo::langinfo = sub { confess unless shift eq "codeset"; $i18_enc };
+	check_localized {
+		is get_errno(), $test_str, "get_errno should work with roman8 encoding under HP-UX";
+	};
+	ok $App::MtAws::Exceptions::_errno_encoding, $encode_enc;
+}
+
+{
+	local $App::MtAws::Exceptions::_errno_encoding = undef;
+	my $test_str = encode("UTF-8", "тест");
+	no warnings 'redefine';
+
+	local *App::MtAws::Exceptions::get_raw_errno = sub { $test_str };
+	local *I18N::Langinfo::langinfo = sub { die };
+	check_localized {
+		is get_errno(), hex_dump_string($test_str), "get_errno should work when CODESET crashed";
+	};
+
+	is $App::MtAws::Exceptions::_errno_encoding, App::MtAws::Exceptions::BINARY_ENCODING(),
+		"should be a binary encoding, when CODESET crashed";
+
+	local *I18N::Langinfo::langinfo = sub { "UTF-8" };
+	check_localized {
+		get_errno();
+	};
+
+	is $App::MtAws::Exceptions::_errno_encoding, App::MtAws::Exceptions::BINARY_ENCODING(),
+		"BINARY encoding should be reused";
+}
+
+{
+	local $App::MtAws::Exceptions::_errno_encoding = undef;
+	my $test_str = encode("UTF-8", "тест");
+	no warnings 'redefine';
+
+	my $not_encoding = "NOT_AN_ENCODING";
+	ok !defined find_encoding($not_encoding);
+
+	local *App::MtAws::Exceptions::get_raw_errno = sub { $test_str };
+	local *I18N::Langinfo::langinfo = sub { confess unless shift eq "OK"; $not_encoding };
+	check_localized {
+		is get_errno(), hex_dump_string($test_str), "get_errno should work encoding is unknown";
+	};
+
+	is $App::MtAws::Exceptions::_errno_encoding, App::MtAws::Exceptions::BINARY_ENCODING(),
+		"should be a binary encoding, when encoding is unknown";
+
+	local *I18N::Langinfo::langinfo = sub { "UTF-8" };
+	check_localized {
+		get_errno();
+	};
+
+	is $App::MtAws::Exceptions::_errno_encoding, App::MtAws::Exceptions::BINARY_ENCODING(),
+		"BINARY encoding should be reused";
+}
+
+{
+	ok ! defined find_encoding(App::MtAws::Exceptions::BINARY_ENCODING()),
+		"BINARY_ENCODING should not be a valid encoding";
+	ok App::MtAws::Exceptions::BINARY_ENCODING(), "BINARY_ENCODING should be TRUE";
+}
+
+{
+	for my $err (EACCES, EAGAIN, ENOMEM, EEXIST) {
+		local $! = $err;
+
+		local $App::MtAws::Exceptions::_errno_encoding = undef;
+
+		my $res_errno = get_errno();
+		my $enc = $App::MtAws::Exceptions::_errno_encoding;
+
+		my $expect = POSIX::strerror($err);
+		check_localized { # dont use $! inside this block
+			if ($enc eq App::MtAws::Exceptions::BINARY_ENCODING()) {
+				is $res_errno, hex_dump_string($expect), "get_errno should work in real with real locales";
+			} else {
+				is $res_errno, decode($enc, $expect), "get_errno should work in real with real locales";
+			}
+		};
+	}
+}
 
 1;
-

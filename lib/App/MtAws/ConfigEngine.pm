@@ -20,7 +20,7 @@
 
 package App::MtAws::ConfigEngine;
 
-our $VERSION = '1.000';
+our $VERSION = '1.000_1';
 
 use Getopt::Long 2.24 qw/:config no_ignore_case/ ;
 use Encode;
@@ -650,7 +650,7 @@ sub read_config
 		config => hex_dump_string($filename);
 	open (my $F, "<:crlf", $filename) or
 		die exception 'cannot_read_config' => "Cannot read config file: %config%, errno=%errno%",
-		config => hex_dump_string($filename), errno => $!;
+		config => hex_dump_string($filename), 'ERRNO';
 	my %newconfig;
 	local $_;
 	my $lineno = 0;

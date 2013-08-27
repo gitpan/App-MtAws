@@ -51,7 +51,7 @@ chmod 0744, $file if -e $file;
 
 {
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	create($file, $fixture);
 	eval {
 		$J->read_journal();
@@ -61,7 +61,7 @@ chmod 0744, $file if -e $file;
 
 {
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	unlink($file);
 	eval {
 		$J->read_journal();
@@ -71,7 +71,7 @@ chmod 0744, $file if -e $file;
 
 {
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	unlink($file);
 	eval {
 		$J->read_journal(should_exist => 1);
@@ -81,11 +81,12 @@ chmod 0744, $file if -e $file;
 
 SKIP: {
 	skip "Cannot run under root", 6 unless $>;
-	
+
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	create($file, $fixture);
 	chmod 0000, $file;
+	my $err_expected = get_errno(POSIX::strerror(EACCES));
 	ok ! defined eval {
 		$J->read_journal(should_exist => 1);
 		1;
@@ -94,14 +95,15 @@ SKIP: {
 	unlink($file);
 	ok is_exception('journal_open_error'), "should_exist should work when true and file missing";
 	is get_exception->{message}, "Unable to open journal file %string filename% for reading, errno=%errno%";
-	is get_exception->{errno}+0, EACCES;
+
+	is get_exception->{errno}, $err_expected;
 	ok length(get_exception->{errno}) > 4; # should be a string, not a number
 	is get_exception->{filename}, $file;
 }
 
 {
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	create($file);
 	eval {
 		$J->read_journal(should_exist => 1);
@@ -111,7 +113,7 @@ SKIP: {
 
 {
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	create($file, $fixture);
 	eval {
 		$J->read_journal(should_exist => 1);
@@ -121,7 +123,7 @@ SKIP: {
 
 {
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	create($file);
 	eval {
 		$J->read_journal(should_exist => 0);
@@ -131,7 +133,7 @@ SKIP: {
 
 {
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	create($file, $fixture);
 	eval {
 		$J->read_journal(should_exist => 0);
@@ -141,7 +143,7 @@ SKIP: {
 
 {
 	my $J = App::MtAws::Journal->new(journal_file=>$file, root_dir => $rootdir);
-	
+
 	unlink($file);
 	eval {
 		$J->read_journal(should_exist => 0);
@@ -152,7 +154,7 @@ SKIP: {
 {
 	for my $mode (qw/0 1/) {
 		my $J = App::MtAws::Journal->new(journal_file=>$mtroot, root_dir => $rootdir);
-		
+
 		eval {
 			$J->read_journal(should_exist => $mode);
 		};
@@ -182,10 +184,10 @@ SKIP: {
 	};
 	chmod 0744, $file;
 	unlink($file);
-	
+
 	ok is_exception('journal_open_error'), "should_exist should work when true and file missing";
 	is get_exception->{message}, "Unable to open journal file %string filename% for writing, errno=%errno%";
-	is get_exception->{errno}+0, EACCES;
+	is get_exception->{errno}, get_errno(POSIX::strerror(EACCES));
 	ok length(get_exception->{errno}) > 4; # should be a string, not a number
 	is get_exception->{filename}, $file;
 }
@@ -230,8 +232,7 @@ sub create
 	open F, ">:encoding(UTF-8)", $file;
 	print F $content."\n" if defined $content;
 	close F;
-	
+
 }
 
 1;
-
