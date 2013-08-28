@@ -20,7 +20,7 @@
 
 package App::MtAws::Exceptions;
 
-our $VERSION = '1.000_1';
+our $VERSION = '1.000_2';
 
 use strict;
 use warnings;
@@ -40,12 +40,10 @@ our @EXPORT = qw/exception get_exception is_exception exception_message dump_err
 
 our $_errno_encoding = undef;
 
-sub get_raw_errno { @_ ? shift : $! } # testable
 sub get_errno
 {
-	local $@;
-	my $err = &get_raw_errno; # TODO: we actually use it only with argument!
-	local $!;
+	my $err = "$_[0]";
+	local ($@, $!);
 
 	# some code in this scope copied from Encode::Locale
 	# http://search.cpan.org/perldoc?Encode%3A%3ALocale
@@ -64,7 +62,12 @@ sub get_errno
 		$res = hex_dump_string($err);
 	} else {
 		eval {
-			$res = decode($_errno_encoding, $err);
+			my $err_copy = $err;
+			{ # workaround issue https://rt.perl.org/rt3/Ticket/Display.html?id=119499
+				local $@;
+				$] < 5.019002-1e-10 or eval { utf8::downgrade($err_copy); 1 } or eval { Encode::_utf8_off($err_copy); };
+			}
+			$res = decode($_errno_encoding, $err_copy, Encode::DIE_ON_ERR|Encode::LEAVE_SRC);
 			1;
 		} or do {
 			$res = hex_dump_string($err);

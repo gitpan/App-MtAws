@@ -20,7 +20,7 @@
 
 package App::MtAws::Command::CheckLocalHash;
 
-our $VERSION = '1.000_1';
+our $VERSION = '1.000_2';
 
 use strict;
 use warnings;
@@ -60,7 +60,7 @@ sub run
 
 						my $F;
 						unless (open_file($F, $absfilename, mode => '<', binary => 1)) {
-							print "CANNOT OPEN file $f: $!\n";
+							print "CANNOT OPEN file $f: ".get_errno($!)."\n";
 							++$error_io;
 							next;
 						}

@@ -20,7 +20,7 @@
 
 package App::MtAws::ProxyTask;
 
-our $VERSION = '1.000_1';
+our $VERSION = '1.000_2';
 
 use strict;
 use warnings;
