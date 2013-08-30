@@ -25,7 +25,7 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 144;
+use Test::More tests => 150;
 use Test::Deep;
 use Encode;
 use FindBin;
@@ -35,7 +35,7 @@ use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use App::MtAws::Exceptions;
 use App::MtAws::Utils;
 use TestUtils;
-use I18N::Langinfo;
+use I18N::Langinfo; # TODO: skip test without that module??
 
 warning_fatal();
 
@@ -440,6 +440,24 @@ SKIP: {
 }
 
 {
+	local $App::MtAws::Exceptions::_errno_encoding = undef;
+	my $found_encoding = 'UTF-8';
+	my $s = 'test тест';
+	ok ! eval { decode($found_encoding, $s); 1 };
+	ok utf8::is_utf8($s);
+	no warnings 'redefine';
+	local *I18N::Langinfo::langinfo = sub { $found_encoding };
+	check_localized {
+		# workaround issue https://rt.perl.org/rt3/Ticket/Display.html?id=119499
+		is get_errno($s), $s, "get_errno should work ERRNO is character string";
+	};
+
+	is $App::MtAws::Exceptions::_errno_encoding, $found_encoding,
+		"should NOT reset to binary encoding, when ERRNo is character string";
+
+}
+
+{
 	ok ! defined find_encoding(App::MtAws::Exceptions::BINARY_ENCODING()),
 		"BINARY_ENCODING should not be a valid encoding";
 	ok App::MtAws::Exceptions::BINARY_ENCODING(), "BINARY_ENCODING should be TRUE";
@@ -457,11 +475,11 @@ SKIP: {
 			if ($enc eq App::MtAws::Exceptions::BINARY_ENCODING()) {
 				is $res_errno, hex_dump_string($expect), "get_errno should work in real with real locales";
 			} else {
-				{ # workaround issue https://rt.perl.org/rt3/Ticket/Display.html?id=119499
-					local $@;
-					$] < 5.019002-1e-10 or eval { utf8::downgrade($expect); 1 } or eval { Encode::_utf8_off($expect); };
+				if (utf8::is_utf8($expect)) { # workaround issue https://rt.perl.org/rt3/Ticket/Display.html?id=119499
+					is $res_errno, $expect, "get_errno should work in real with real locales";
+				} else {
+					is $res_errno, decode($enc, $expect), "get_errno should work in real with real locales";
 				}
-				is $res_errno, decode($enc, $expect), "get_errno should work in real with real locales";
 			}
 		};
 	}

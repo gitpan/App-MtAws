@@ -20,7 +20,7 @@
 
 package App::MtAws::Exceptions;
 
-our $VERSION = '1.000_2';
+our $VERSION = '1.000_3';
 
 use strict;
 use warnings;
@@ -30,7 +30,7 @@ use constant BINARY_ENCODING => "MT_BINARY";
 use App::MtAws::Utils;
 
 use Carp;
-use I18N::Langinfo;
+eval { require I18N::Langinfo; }; # TODO: test that it's loaded compile time, test that it wont break if failed
 
 require Exporter;
 use base qw/Exporter/;
@@ -49,6 +49,7 @@ sub get_errno
 	# http://search.cpan.org/perldoc?Encode%3A%3ALocale
 	# by Gisle Aas <gisle@aas.no>.
 	$_errno_encoding ||= eval {
+		require I18N::Langinfo;
 		my $enc = I18N::Langinfo::langinfo(I18N::Langinfo::CODESET());
 		# copy-paste workaround from Encode::Locale
 		# https://rt.cpan.org/Ticket/Display.html?id=66373
@@ -62,12 +63,9 @@ sub get_errno
 		$res = hex_dump_string($err);
 	} else {
 		eval {
-			my $err_copy = $err;
-			{ # workaround issue https://rt.perl.org/rt3/Ticket/Display.html?id=119499
-				local $@;
-				$] < 5.019002-1e-10 or eval { utf8::downgrade($err_copy); 1 } or eval { Encode::_utf8_off($err_copy); };
-			}
-			$res = decode($_errno_encoding, $err_copy, Encode::DIE_ON_ERR|Encode::LEAVE_SRC);
+			# workaround issue https://rt.perl.org/rt3/Ticket/Display.html?id=119499
+			# perhaps Encode::decode_utf8 can be used here too
+			$res = utf8::is_utf8($err) ? $err : decode($_errno_encoding, $err, Encode::DIE_ON_ERR|Encode::LEAVE_SRC);
 			1;
 		} or do {
 			$res = hex_dump_string($err);
