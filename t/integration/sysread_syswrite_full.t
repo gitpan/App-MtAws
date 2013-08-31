@@ -88,7 +88,7 @@ for my $redef (0, 1) {
 	}
 
 	{
-		local $SIG{USR1} = sub { print STDERR "SIG $$\n" };
+		local $SIG{USR1} = sub { print "# SIG $$\n" };
 		with_fork
 			sub {
 				my ($in, $out, $childpid) = @_;
@@ -105,7 +105,7 @@ for my $redef (0, 1) {
 	}
 
 	{
-		local $SIG{USR1} = sub { print STDERR "SIG $$\n" };
+		local $SIG{USR1} = sub { print "# SIG $$\n" };
 		with_fork
 			sub {
 				my ($in, $out, $childpid) = @_;
@@ -127,12 +127,12 @@ for my $redef (0, 1) {
 	SKIP: {
 		skip "Cannot test in this configuration or due to some perl bugs", 20
 			if $redef && (
-				($] < 5.01-$e) ||
-				( ($] > 5.014-$e) && ($] < 5.016-$e) ) ||
+				($^V lt v5.10.0) ||
+				( ($^V ge v5.14.0) && ($^V le 5.16.0) ) ||
 				(defined $ENV{PERLIO} && $ENV{PERLIO} =~ /stdio/)
 			);
 
-		local $SIG{ALRM} = sub { print STDERR "SIG $$\n" };
+		local $SIG{ALRM} = sub { print "# SIG $$\n" };
 		my $sample = 'abxhrtf6';
 		my $full_sample = 'abxhrtf6' x (8192-7);
 		my $sample_l = length $full_sample;
