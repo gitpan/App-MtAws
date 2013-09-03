@@ -13,7 +13,7 @@ Amazon Glacier is an archive/backup service with very low storage price. However
 
 ## Version
 
-* Version 1.000 (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
+* Version 1.051 (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
 
 [mt-aws glacier changelog]:https://github.com/vsespb/mt-aws-glacier/blob/master/ChangeLog
 
@@ -53,71 +53,125 @@ Amazon Glacier is an archive/backup service with very low storage price. However
 ## Installation/System requirements
 
 Script is made for Unix OS. Tested under Linux. Should work under other POSIX OSes (*BSD, Solaris). Lightly tested under Mac OS X.
-Should NOT work under Windows/Cygwin. Minimum Perl version required is 5.8.8 (pretty old, AFAIK there are no supported distributions with older Perls)
+Will NOT work under Windows/Cygwin. Minimum Perl version required is 5.8.8 (pretty old, AFAIK there are no supported distributions with older Perls)
 
-### Manual (universal) installation instructions.
 
-* Install the following CPAN modules:
+### Manual installation
 
-	* **LWP::UserAgent** (or Debian package **libwww-perl** or RPM package **perl-libwww-perl** or MacPort **p5-libwww-perl**)
-	* **JSON::XS** (or Debian package **libjson-xs-perl** or RPM package **perl-JSON-XS** or MacPort **p5-json-XS**)
+#### Install prerequisites
 
-	NOTE: for old Perl < 5.9.3 (i.e. *CentOS 5.x*), install also **Digest::SHA** (or Debian package **libdigest-sha-perl** or RPM package **perl-Digest-SHA**)
+###### Ubuntu 12.04+, Debian 7
 
-	NOTE: Some distributions with old Perl stuff (examples: *Ubuntu 10.04*, *CentOS 5/6*) to use HTTPS you need to install **LWP::Protocol::https** version 6+ via CPAN: `cpan -i LWP::Protocol::https`
-	(see CPAN prerequisites below)
+`sudo apt-get install libwww-perl libjson-xs-perl`
 
-	NOTE: *Fedora*, *CentOS 6* etc [decoupled](http://www.nntp.perl.org/group/perl.perl5.porters/2009/08/msg149747.html) Perl,
-	so package named `perl`, which is a part of default installation, is not actually real, full Perl, which is misleading.
-	`perl-core` is looks much more like a real Perl (I [hope](https://bugzilla.redhat.com/show_bug.cgi?id=985791) so)
+###### RHEL/CentOS 5
 
-	NOTE: On newer RHEL distributions (some *Fedora* versions) you need install **perl-LWP-Protocol-https** to use HTTPS.
+`sudo yum install perl-Digest-SHA perl-JSON-XS perl-libwww-perl`
 
-	NOTE: For some RPM packages listed above you need enable [EPEL](http://fedoraproject.org/wiki/EPEL) repository
+To use HTTPS you also need:
 
-* Install mt-aws-glacier
+1. `sudo yum groupinstall "Development Tools"`
 
-		git clone https://github.com/vsespb/mt-aws-glacier.git
+2. `sudo yum install openssl-devel`
 
-	(or just download and unzip `https://github.com/vsespb/mt-aws-glacier/archive/master.zip` )
+3. install `LWP::Protocol::https` via [cpanm]
 
-	After that you can execute `mtglacier` script (found in root of repository) from any directory, or create a symlink to it - it will find other package files by itself
-	(don't forget to remove it later, if you decide to switch to CPAN install)
+###### RHEL/CentOS 6
+
+`sudo yum install perl-core perl-CGI perl-JSON-XS perl-libwww-perl`
+
+To use HTTPS you also need:
+
+1. `sudo yum groupinstall "Development Tools"`
+
+2. `sudo yum install openssl-devel`
+
+3. install `LWP::Protocol::https` via [cpanm]
+
+###### Debian 6
+
+`sudo apt-get install libwww-perl libjson-xs-perl`
+
+To use HTTPS you also need:
+
+1. `sudo apt-get install build-essential libssl-dev`
+
+2. install `LWP::Protocol::https` via [cpanm]
+
+###### Fedora 18+
+
+`sudo yum install perl-core perl-CGI perl-JSON-XS perl-libwww-perl perl-LWP-Protocol-https`
+
+###### Amazon Linux 2013.03
+
+`sudo yum install perl-core perl-JSON-XS perl-libwww-perl perl-LWP-Protocol-https`
+
+###### MacOS X
+
+Install the following packages:
+
+`p5-libwww-perl p5-json-XS`
+
+#### Install mt-aws-glacier
+
+	git clone https://github.com/vsespb/mt-aws-glacier.git
+
+(or just download and unzip `https://github.com/vsespb/mt-aws-glacier/archive/master.zip` )
+
+After that you can execute `mtglacier` script (found in root of repository) from any directory, or create a symlink to it - it will find other package files by itself
+(don't forget to remove it later, if you decide to switch to CPAN install)
 
 ### *OR* Installation via CPAN
-
-* Prerequisites:
-
-	* OpenSSL dev library for HTTPS support (`openssl-devel` RPM or `libssl-dev` DEB)
-
-	* C compiller and header files: `yum groupinstall "Development Tools"` for RHEL or `build-essential` for Debian
-
-* How to install (or update in the future):
 
 		cpan -i App::MtAws
 
 That's it.
 
-NOTE: If you've used manual installation before this, it's probably better to remove previously installed `mtglacier` executable from your path.
 
-NOTE: CPAN distribution of *mt-aws-glacier* has a bit more dependencies than manual installation, as it requires additional modules for testsuite.
+### Installation general instructions, troubleshooting, edge cases and misc instructions
 
-NOTE: New releases of *mt-aws-glacier* usually appear on CPAN within a ~week after official release.
+##### In general you need the following perl modules to run *mt-aws-glacier*:
 
-NOTE: On *Fedora*, *CentOS 6 minimal* you need to install `perl-core`, `perl-CPAN`, `perl-CGI` first, see above notice about *Fedora*
+* **LWP::UserAgent** (or Debian package **libwww-perl** or RPM package **perl-libwww-perl** or MacPort **p5-libwww-perl**)
+* **JSON::XS** (or Debian package **libjson-xs-perl** or RPM package **perl-JSON-XS** or MacPort **p5-json-XS**)
 
-NOTE: For some distributions with old Perl stuff (examples: *CentOS 5/6*) you need to update CPAN and Module::Build first: `cpan -i CPAN`, `cpan -i Module::Build`
+##### Other notes
 
-NOTE: CPAN asks too many questions during install (but ignores important errors). You can avoid it by running `cpan` command and configuring it like this:
+1. for old Perl < 5.9.3 (i.e. *CentOS 5.x*), install also **Digest::SHA** (or Debian package **libdigest-sha-perl** or RPM package **perl-Digest-SHA**)
 
-	o conf build_requires_install_policy yes
-	o conf prerequisites_policy follow
-	o conf halt_on_failure on
-	o conf commit
-	exit
+2. Some distributions with old Perl stuff (examples: *Ubuntu 10.04*, *CentOS 5/6*) to use HTTPS you need to upgrade **LWP::Protocol::https** to version 6+ via CPAN.
 
-NOTE: Instead system `cpan` tool you might want to try [`cpanm`](http://search.cpan.org/perldoc?App%3A%3Acpanminus) - it's a bit easier to install and configure.
+3. *Fedora*, *CentOS 6* etc [decoupled](http://www.nntp.perl.org/group/perl.perl5.porters/2009/08/msg149747.html) Perl,
+so package named `perl`, which is a part of default installation, is not actually real, full Perl, which is misleading.
+`perl-core` is looks much more like a real Perl (I [hope](https://bugzilla.redhat.com/show_bug.cgi?id=985791) so)
 
+4. On newer RHEL distributions (some *Fedora* versions) you need install **perl-LWP-Protocol-https** to use HTTPS.
+
+5. For some RPM packages listed above you need enable [EPEL](http://fedoraproject.org/wiki/EPEL) repository
+
+6. If you've used manual installation before "CPAN" installation, it's probably better to remove previously installed `mtglacier` executable from your path.
+
+7. CPAN distribution of *mt-aws-glacier* has a bit more dependencies than manual installation, as it requires additional modules for testsuite.
+
+8. New releases of *mt-aws-glacier* usually appear on CPAN within a ~week after official release.
+
+9. On *Fedora*, *CentOS 6 minimal* you need to install `perl-core`, `perl-CPAN`, `perl-CGI` before trying to install via CPAN
+
+10. For some distributions with old Perl stuff (examples: *CentOS 5/6*) you need to update CPAN and Module::Build first: `cpan -i CPAN`, `cpan -i Module::Build`
+
+11. CPAN tool asks too many questions during install (but ignores important errors). You can avoid it by running `cpan` command and configuring it like this:
+
+		o conf build_requires_install_policy yes
+		o conf prerequisites_policy follow
+		o conf halt_on_failure on
+		o conf commit
+		exit
+
+12. Instead system `cpan` tool you might want to try [`cpanm`](http://search.cpan.org/perldoc?App%3A%3Acpanminus) - it's a bit easier to install and configure.
+
+13. Installation of **LWP::Protocol::https** requires C header files ( `yum groupinstall "Development Tools"` for RHEL or `build-essential` for Debian ) and OpenSSL dev library (`openssl-devel` RPM or `libssl-dev` DEB).
+
+[cpanm]:http://search.cpan.org/perldoc?App%3A%3Acpanminus
 
 ## Warnings ( *MUST READ* )
 

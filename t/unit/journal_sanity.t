@@ -119,13 +119,16 @@ ok ( ! defined App::MtAws::Utils::sanity_relative_filename('//.'), "should deny 
 ok ( ! defined App::MtAws::Utils::sanity_relative_filename('//a'), "should deny two slashes");
 ok ( ! defined App::MtAws::Utils::sanity_relative_filename('//./a'), "should deny two slashes");
 
-ok ( App::MtAws::Utils::sanity_relative_filename('\\\\') eq '\\\\', "should allow backslash");
-ok ( App::MtAws::Utils::sanity_relative_filename('\\\\..') eq '\\\\..', "should allow backslash");
-ok ( App::MtAws::Utils::sanity_relative_filename('\\\\..\\a') eq '\\\\..\\a', "should allow backslash");
-ok ( App::MtAws::Utils::sanity_relative_filename('\\\\.') eq '\\\\.', "should allow backslash");
-ok ( App::MtAws::Utils::sanity_relative_filename('\\\\a') eq '\\\\a', "should allow backslash");
-ok ( App::MtAws::Utils::sanity_relative_filename('\\\\.\\a') eq '\\\\.\\a', "should allow backslash");
 
+SKIP: {
+	skip "backslash allowed under cygwin", 6 if $^O eq 'cygwin';
+	ok ( App::MtAws::Utils::sanity_relative_filename('\\\\') eq '\\\\', "should allow backslash");
+	ok ( App::MtAws::Utils::sanity_relative_filename('\\\\..') eq '\\\\..', "should allow backslash");
+	ok ( App::MtAws::Utils::sanity_relative_filename('\\\\..\\a') eq '\\\\..\\a', "should allow backslash");
+	ok ( App::MtAws::Utils::sanity_relative_filename('\\\\.') eq '\\\\.', "should allow backslash");
+	ok ( App::MtAws::Utils::sanity_relative_filename('\\\\a') eq '\\\\a', "should allow backslash");
+	ok ( App::MtAws::Utils::sanity_relative_filename('\\\\.\\a') eq '\\\\.\\a', "should allow backslash");
+};
 
 # is_relative_filename
 
@@ -215,12 +218,15 @@ ok ( !App::MtAws::Utils::is_relative_filename('//.'), "should deny two slashes")
 ok ( !App::MtAws::Utils::is_relative_filename('//a'), "should deny two slashes");
 ok ( !App::MtAws::Utils::is_relative_filename('//./a'), "should deny two slashes");
 
-ok ( App::MtAws::Utils::is_relative_filename('\\\\'), "should allow backslash");
-ok ( App::MtAws::Utils::is_relative_filename('\\\\..'), "should allow backslash");
-ok ( App::MtAws::Utils::is_relative_filename('\\\\..\\a'), "should allow backslash");
-ok ( App::MtAws::Utils::is_relative_filename('\\\\.'), "should allow backslash");
-ok ( App::MtAws::Utils::is_relative_filename('\\\\a'), "should allow backslash");
-ok ( App::MtAws::Utils::is_relative_filename('\\\\.\\a'), "should allow backslash");
+SKIP: {
+	skip "backslash allowed under cygwin", 6 if $^O eq 'cygwin';
+	ok ( App::MtAws::Utils::is_relative_filename('\\\\'), "should allow backslash");
+	ok ( App::MtAws::Utils::is_relative_filename('\\\\..'), "should allow backslash");
+	ok ( App::MtAws::Utils::is_relative_filename('\\\\..\\a'), "should allow backslash");
+	ok ( App::MtAws::Utils::is_relative_filename('\\\\.'), "should allow backslash");
+	ok ( App::MtAws::Utils::is_relative_filename('\\\\a'), "should allow backslash");
+	ok ( App::MtAws::Utils::is_relative_filename('\\\\.\\a'), "should allow backslash");
+}
 
 ok ( App::MtAws::Utils::is_relative_filename('0'), "should allow last component to be false");
 ok ( App::MtAws::Utils::is_relative_filename('0/0'), "should allow last component to be false");
