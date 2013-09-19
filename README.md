@@ -74,7 +74,7 @@ To use HTTPS you also need:
 
 2. `sudo yum install openssl-devel`
 
-3. install `LWP::Protocol::https` via [cpanm]
+3. install/update `LWP::UserAgent` and `LWP::Protocol::https` via [cpanm]
 
 ###### RHEL/CentOS 6
 
@@ -86,7 +86,7 @@ To use HTTPS you also need:
 
 2. `sudo yum install openssl-devel`
 
-3. install `LWP::Protocol::https` via [cpanm]
+3. install/update `LWP::UserAgent` and `LWP::Protocol::https` via [cpanm]
 
 ###### Debian 6
 
@@ -96,11 +96,19 @@ To use HTTPS you also need:
 
 1. `sudo apt-get install build-essential libssl-dev`
 
-2. install `LWP::Protocol::https` via [cpanm]
+3. install/update `LWP::UserAgent` and `LWP::Protocol::https` via [cpanm]
 
 ###### Fedora 18+
 
 `sudo yum install perl-core perl-CGI perl-JSON-XS perl-libwww-perl perl-LWP-Protocol-https`
+
+###### SUSE Linux Enterprise Server 11
+
+1. `sudo zypper install perl-libwww-perl libopenssl-devel`
+2. `sudo zypper install --type pattern Basis-Devel`
+3. Upgrade openssl to (at least) `0.9.8r` (to check version use `openssl version`), can be found [here](http://download.opensuse.org/repositories/security:/fips/) (more info here [RT#81575](https://rt.cpan.org/Public/Bug/Display.html?id=81575))
+4. Update `ExtUtils::MakeMaker` via [cpanm]
+5. Install `LWP::UserAgent`, `LWP::Protocol::https`, `JSON::XS` via [cpanm]
 
 ###### Amazon Linux 2013.03
 
@@ -781,7 +789,7 @@ metdata without problems and you can dump metadata to journals with different en
 
 ## Limitations
 
-* Only support filenames, which consist of octets, that can me mapped to a valid character sequence in desired encoding (i.e. filename
+* Only support filenames, which consist of octets, that can be mapped to a valid character sequence in desired encoding (i.e. filename
 which are made of random bytes/garbage is not supported. usually it's not a problem).
 
 * Filenames with CR (Carriage return, code 0x0D) LF (Line feed, code 0x0A) and TAB (0x09) are not supported (usually not a problem too).

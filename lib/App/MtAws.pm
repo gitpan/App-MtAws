@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '1.051';
+our $VERSION = '1.051_1';
 our $VERSION_MATURITY = "";
 
 use constant ONE_MB => 1024*1024;
@@ -85,7 +85,7 @@ sub print_system_modules_version
 			my $name = $module;
 			$name =~ s[/][::]g;
 			$name =~ s[\.pmc?$][];
-			my $ver = $name->VERSION;
+			my $ver = eval qq{\$${name}::VERSION};
 			$ver = 'undef' unless defined $ver;
 			print "$name\t$ver\t$INC{$module}\n";
 		}
@@ -120,6 +120,8 @@ sub process
 	print "MT-AWS-Glacier, Copyright 2012-2013 Victor Efimov http://mt-aws.com/ Version $VERSION$VERSION_MATURITY\n\n";
 
 	print STDERR "**NOT RECOMMENDED FOR PRODUCTION USE UNDER CYGWIN**\n\n" if ($^O eq 'cygwin');
+	print STDERR "**NOT TESTED UNDER PERLIO=stdio**\n\n" if (defined $ENV{PERLIO} && $ENV{PERLIO} =~ /stdio/);
+	die "Will *not* work under Win32\n" if ($^O eq 'MSWin32');
 
 	my ($P) = @_;
 	my ($src, $vault, $journal);

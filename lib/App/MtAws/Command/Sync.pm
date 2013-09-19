@@ -20,7 +20,7 @@
 
 package App::MtAws::Command::Sync;
 
-our $VERSION = '1.051';
+our $VERSION = '1.051_1';
 
 use strict;
 use warnings;
@@ -133,8 +133,13 @@ sub next_new
 	my ($options, $j) = @_;
 	if (my $rec = shift @{ $j->{listing}{new} }) {
 		my ($absfilename, $relfilename) = ($j->absfilename($rec->{relfilename}), $rec->{relfilename});
-		App::MtAws::JobProxy->new(job =>
-			App::MtAws::Job::FileCreate->new(filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$options->{partsize}));
+		if ($ENV{NEWFSM}) {
+			use App::MtAws::QueueJob::UploadMultipart;
+			App::MtAws::QueueJob::UploadMultipart->new(filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$options->{partsize});
+		} else {
+			App::MtAws::JobProxy->new(job =>
+				App::MtAws::Job::FileCreate->new(filename => $absfilename, relfilename => $relfilename, partsize => ONE_MB*$options->{partsize}));
+		}
 	} else {
 		return;
 	}
