@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob::UploadMultipart;
 
-our $VERSION = '1.051_1';
+our $VERSION = '1.051_2';
 
 use strict;
 use warnings;
@@ -50,7 +50,7 @@ sub on_create
 		state("wait"),
 		job( App::MtAws::QueueJob::MultipartCreate->new(map { $_ => $self->{$_} } qw/filename relfilename partsize/), sub {
 			my $j = shift;
-			$self->{$_} = $j->{$_} or confess for qw/fh upload_id mtime/;
+			defined($self->{$_} = $j->{$_}) or confess for qw/fh upload_id mtime/;
 			state("part")
 		});
 }

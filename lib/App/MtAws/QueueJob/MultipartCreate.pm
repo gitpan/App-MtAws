@@ -20,11 +20,12 @@
 
 package App::MtAws::QueueJob::MultipartCreate;
 
-our $VERSION = '1.051_1';
+our $VERSION = '1.051_2';
 
 use strict;
 use warnings;
 use Carp;
+use File::stat;
 
 use App::MtAws::QueueJobResult;
 use App::MtAws::Exceptions;
@@ -78,7 +79,5 @@ sub on_create
 		state("done")
 	}
 }
-
-
 
 1;

@@ -20,7 +20,7 @@
 
 package App::MtAws::Job::FileVerifyAndUpload;
 
-our $VERSION = '1.051_1';
+our $VERSION = '1.051_2';
 
 use strict;
 use warnings;

@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob;
 
-our $VERSION = '1.051_1';
+our $VERSION = '1.051_2';
 
 use strict;
 use warnings;
@@ -52,6 +52,7 @@ sub set_task_proxy_callback
 			confess if $result->{job};
 			confess if $result->{task};
 		}
+		return;
 	}
 }
 
