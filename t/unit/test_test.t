@@ -27,7 +27,7 @@ use warnings;
 use utf8;
 use Test::More tests => 27;
 use FindBin;
-use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../lib", "$FindBin::RealBin/../../lib";
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use TestUtils;
 
 warning_fatal();

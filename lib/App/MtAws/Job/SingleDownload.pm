@@ -20,7 +20,7 @@
 
 package App::MtAws::Job::SingleDownload;
 
-our $VERSION = '1.051_2';
+our $VERSION = '1.055';
 
 use strict;
 use warnings;

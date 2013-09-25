@@ -20,7 +20,7 @@
 
 package App::MtAws::ForkEngine;
 
-our $VERSION = '1.051_2';
+our $VERSION = '1.055';
 
 use strict;
 use warnings;
@@ -92,12 +92,7 @@ sub run_children
 sub run_parent
 {
 	my ($self, $disp_select) = @_;
-	if ($ENV{NEWFSM}) {
-		use App::MtAws::ParentWorkerNew;
-		return $self->{parent_worker} = App::MtAws::ParentWorkerNew->new(children => $self->{children}, disp_select => $disp_select, options=>$self->{options});
-	} else {
-		return $self->{parent_worker} = App::MtAws::ParentWorker->new(children => $self->{children}, disp_select => $disp_select, options=>$self->{options});
-	}
+	return $self->{parent_worker} = App::MtAws::ParentWorker->new(children => $self->{children}, disp_select => $disp_select, options=>$self->{options});
 }
 
 sub parent_exit_on_signal
