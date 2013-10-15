@@ -13,7 +13,7 @@ Amazon Glacier is an archive/backup service with very low storage price. However
 
 ## Version
 
-* Version 1.055 (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
+* Version 1.056 (See [ChangeLog][mt-aws glacier changelog])  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
 
 [mt-aws glacier changelog]:https://github.com/vsespb/mt-aws-glacier/blob/master/ChangeLog
 
@@ -55,6 +55,22 @@ Amazon Glacier is an archive/backup service with very low storage price. However
 Script is made for Unix OS. Tested under Linux. Should work under other POSIX OSes (*BSD, Solaris). Lightly tested under Mac OS X.
 Will NOT work under Windows/Cygwin. Minimum Perl version required is 5.8.8 (pretty old, AFAIK there are no supported distributions with older Perls)
 
+### Installation via OS package manager
+
+NOTE: If you've used manual installation before, please remove previously installed `mtglacier` executable from your path.
+
+##### Ubuntu 12.04+
+
+Can be installed via PPA  [vsespb/mt-aws-glacier](https://launchpad.net/~vsespb/+archive/mt-aws-glacier):
+
+1.	`sudo add-apt-repository ppa:vsespb/mt-aws-glacier`
+
+	(GPG key id/fingerprint would be **D2BFA5E4** and **D7F1BC2238569FC447A8D8249E86E8B2D2BFA5E4**)
+
+2.	`sudo apt-get update`
+3.	`sudo apt-get install libapp-mtaws-perl`
+
+That's it.
 
 ### Manual installation
 
@@ -191,11 +207,9 @@ does not define any new layer of abstraction over Amazon Glacier entities.
 
 * With low "partsize" option you pay a bit more (Amazon charges for each upload request)
 
-* With high partsize*concurrency there is a risk of getting network timeouts HTTP 408/500.
-
-* Memory usage (for 'sync') formula is ~ min(NUMBER_OF_FILES_TO_SYNC, max-number-of-files) + partsize*concurrency
-
 * For backup created with older versions (0.7x) of mt-aws-glacier, Journal file **required to restore backup**.
+
+* Use **one Journal file** only with **one (same) vault** ( more info [here](#what-is-journal) and [here](#how-to-maintain-a-relation-between-my-journal-files-and-my-vaults) )
 
 * When work with CD-ROM/CIFS/other non-Unix/non-POSIX filesystems, you might need set `leaf-optimization` to `0`
 
@@ -796,6 +810,11 @@ which are made of random bytes/garbage is not supported. usually it's not a prob
 * Length of relative filenames. Currently limit is about 700 ASCII characters or 350 2-byte UTF-8 character (.. or 230 3-byte characters).
 
 (NOTE: if above requirements are not met, error will be thrown)
+
+* Memory usage (for 'sync') formula is ~ min(NUMBER_OF_FILES_TO_SYNC, max-number-of-files) + partsize*concurrency
+
+* With high partsize*concurrency there is a risk of getting network timeouts HTTP 408/500.
+
 
 ## Test/Play with it
 
