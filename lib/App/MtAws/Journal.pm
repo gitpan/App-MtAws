@@ -20,7 +20,7 @@
 
 package App::MtAws::Journal;
 
-our $VERSION = '1.056';
+our $VERSION = '1.056_1';
 
 use strict;
 use warnings;

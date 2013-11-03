@@ -20,7 +20,7 @@
 
 package App::MtAws::ConfigEngine;
 
-our $VERSION = '1.056';
+our $VERSION = '1.056_1';
 
 use Getopt::Long 2.24 qw/:config no_ignore_case/ ;
 use Encode;
@@ -523,7 +523,7 @@ sub deprecated(@)
 		my $opt = $context->{options}->{ seen() };
 		confess "positional options can't be deprecated" if $opt->{positional};
 		if (defined $opt->{value}) {
-			warning('option_deprecated_for_command', a => _real_option_name $opt);
+			warning('option_deprecated_for_command', a => _real_option_name $opt) if $opt->{source} eq 'option';
 			undef $opt->{value};
 		}
 		$_;

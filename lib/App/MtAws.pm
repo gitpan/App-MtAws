@@ -39,19 +39,29 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '1.056';
+our $VERSION = '1.056_1';
 our $VERSION_MATURITY = "";
 
 use constant ONE_MB => 1024*1024;
 
 use App::MtAws::ParentWorker;
 use App::MtAws::ChildWorker;
+
+# if NEWFSM
+use App::MtAws::QueueJob::CreateVault;
+use App::MtAws::QueueJob::DeleteVault;
+use App::MtAws::QueueJob::RetrieveInventory;
+# else
 use App::MtAws::JobProxy;
+use App::MtAws::JobListProxy;
 use App::MtAws::Job::FileCreate;
 use App::MtAws::Job::FileListDelete;
 use App::MtAws::Job::RetrievalFetch;
-use App::MtAws::JobListProxy;
 use App::MtAws::Job::RetrieveInventory;
+use App::MtAws::Job::CreateVault;
+use App::MtAws::Job::DeleteVault;
+# end
+
 use File::Find ;
 use File::Spec;
 use App::MtAws::Journal;
@@ -59,8 +69,7 @@ use App::MtAws::ConfigDefinition;
 use App::MtAws::ForkEngine qw/with_forks fork_engine/;
 use Carp;
 use IO::Handle;
-use App::MtAws::Job::CreateVault;
-use App::MtAws::Job::DeleteVault;
+
 use App::MtAws::Utils;
 use App::MtAws::Exceptions;
 use PerlIO::encoding;
@@ -276,7 +285,9 @@ END
 		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::RetrieveInventory->new());
+			my $ft = $ENV{NEWFSM} ?
+				App::MtAws::QueueJob::RetrieveInventory->new() :
+				App::MtAws::JobProxy->new(job => App::MtAws::Job::RetrieveInventory->new());
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'download-inventory') {
@@ -289,14 +300,18 @@ END
 		$options->{concurrency} = 1;
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::CreateVault->new(name => $options->{'vault-name'}));
+			my $ft = $ENV{NEWFSM} ?
+				App::MtAws::QueueJob::CreateVault->new(name => $options->{'vault-name'}) :
+				App::MtAws::JobProxy->new(job => App::MtAws::Job::CreateVault->new(name => $options->{'vault-name'}));
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'delete-vault') {
 		$options->{concurrency} = 1;
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::DeleteVault->new(name => $options->{'vault-name'}));
+			my $ft = $ENV{NEWFSM} ?
+				App::MtAws::QueueJob::DeleteVault->new(name => $options->{'vault-name'}) :
+				App::MtAws::JobProxy->new(job => App::MtAws::Job::DeleteVault->new(name => $options->{'vault-name'}));
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'help') {
