@@ -26,7 +26,7 @@ use utf8;
 use Test::More tests => 54;
 use Test::Deep;
 use FindBin;
-use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use TestUtils;
 
 warning_fatal();

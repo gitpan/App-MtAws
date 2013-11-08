@@ -28,7 +28,7 @@ use utf8;
 use Test::More tests => 1028;
 use Test::Deep;
 use FindBin;
-use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use App::MtAws::FileVersions;
 use TestUtils;
 

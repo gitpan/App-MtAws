@@ -30,7 +30,7 @@ use Carp;
 use Encode;
 use FindBin;
 use POSIX;
-use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use Data::Dumper;
 
 # before 'use xxx Utils'

@@ -25,7 +25,7 @@ use warnings;
 use utf8;
 use Test::Spec;
 use FindBin;
-use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use App::MtAws::GlacierRequest;
 use App::MtAws::Exceptions;
 use App::MtAws;

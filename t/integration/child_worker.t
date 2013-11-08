@@ -26,7 +26,7 @@ use utf8;
 use Test::Spec;
 use Carp;
 use FindBin;
-use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use App::MtAws::GlacierRequest;
 use App::MtAws::ChildWorker;
 use App::MtAws::TreeHash;

@@ -24,17 +24,15 @@ use strict;
 use warnings;
 use utf8;
 
-BEGIN { $ENV{NEWFSM} = 1 };
-
 use FindBin;
-use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 
 use Carp;
 use List::Util qw/first/;
 use Scalar::Util qw/looks_like_number/;
 
 use Test::Spec;
-use Test::More;
+use Test::More tests => 490;
 use Test::Deep;
 
 use Data::Dumper;
@@ -44,8 +42,6 @@ use App::MtAws::Journal;
 require App::MtAws::Command::Sync;
 
 warning_fatal();
-
-plan tests => 475;
 
 describe "command" => sub {
 	my $j;
@@ -217,24 +213,33 @@ describe "command" => sub {
 			sub verify_create_job
 			{
 				my ($options, $j, $file, $rec) = @_;
-				ok $rec->isa('App::MtAws::QueueJob::Upload');
-				is $rec->{partsize}, $options->{partsize}*1024*1024;
-				is $rec->{relfilename}, $file->{relfilename};
-				is $rec->{filename}, $j->absfilename($file->{relfilename});
-				ok $rec->{delete_after_upload};
-				is $rec->{archive_id}, $file->{archive_id};
+				ok $rec->isa('App::MtAws::JobProxy');
+				my $job = $rec->{job};
+				ok $job->isa('App::MtAws::Job::FileCreate');
+				is $job->{partsize}, $options->{partsize}*1024*1024;
+				is $job->{relfilename}, $file->{relfilename};
+				is $job->{filename}, $j->absfilename($file->{relfilename});
+
+				is ref $job->{finish_cb}, 'CODE';
+
+				my $finish = $job->{finish_cb}->();
+
+				ok $finish->isa('App::MtAws::Job::FileListDelete');
+				cmp_deeply $finish->{archives}, [{archive_id => $file->{archive_id}, relfilename => $file->{relfilename}}];
 			}
 
 			sub verify_treehash_job
 			{
 				my ($options, $j, $file, $rec) = @_;
-				ok $rec->isa('App::MtAws::QueueJob::VerifyAndUpload');
-				is $rec->{filename}, $j->absfilename($file->{relfilename});
-				is $rec->{relfilename}, $file->{relfilename};
-				ok $rec->{delete_after_upload};
-				is $rec->{archive_id}, $file->{archive_id};
-				is $rec->{treehash}, $file->{treehash};
-				is $rec->{partsize}, $options->{partsize}*1024*1024;
+				ok $rec->isa('App::MtAws::JobProxy');
+				my $job = $rec->{job};
+				ok $job->isa('App::MtAws::Job::FileVerifyAndUpload');
+				is $job->{filename}, $j->absfilename($file->{relfilename});
+				is $job->{relfilename}, $file->{relfilename};
+				ok $job->{delete_after_upload};
+				is $job->{archive_id}, $file->{archive_id};
+				is $job->{treehash}, $file->{treehash};
+				is $job->{partsize}, $options->{partsize}*1024*1024;
 			}
 
 
@@ -348,22 +353,24 @@ describe "command" => sub {
 		it "should work with one file" => sub {
 			$j->{listing}{new} = [{relfilename => 'file1'}];
 			my $rec = App::MtAws::Command::Sync::next_new($options, $j);
-			ok $rec->isa('App::MtAws::QueueJob::Upload');
-			is $rec->{partsize}, $options->{partsize}*1024*1024;
-			is $rec->{relfilename}, 'file1';
-			is $rec->{filename}, $j->absfilename('file1');
-			ok !$rec->{delete_after_upload};
+			ok $rec->isa('App::MtAws::JobProxy');
+			my $job = $rec->{job};
+			is $job->{partsize}, $options->{partsize}*1024*1024;
+			is $job->{relfilename}, 'file1';
+			is $job->{filename}, $j->absfilename('file1');
+			ok $job->isa('App::MtAws::Job::FileCreate');
 			is scalar @{ $j->{listing}{new} }, 0;
 			ok !defined (App::MtAws::Command::Sync::next_new($options, $j));
 		};
 		it "should work with two files" => sub {
 			$j->{listing}{new} = [{relfilename => 'file1'}, {relfilename => 'file2'}];
 			my $rec = App::MtAws::Command::Sync::next_new($options, $j);
-			ok $rec->isa('App::MtAws::QueueJob::Upload');
-			is $rec->{relfilename}, 'file1';
+			my $job = $rec->{job};
+			is $job->{relfilename}, 'file1';
 			is scalar @{ $j->{listing}{new} }, 1;
 			$rec = App::MtAws::Command::Sync::next_new($options, $j);
-			is $rec->{relfilename}, 'file2';
+			$job = $rec->{job};
+			is $job->{relfilename}, 'file2';
 		};
 		it "should work with zero files" => sub {
 			$j->{listing}{new} = [];
@@ -377,47 +384,51 @@ describe "command" => sub {
 			$options = { };
 		};
 		it "should work with one file" => sub {
-			my $r = {relfilename => 'file1', archive_id => 'somearchive'};
-			$j->{listing}{missing} = [{relfilename => $r->{relfilename}}];
+			my $r = {relfilename => 'file1', size => 123};
+			$j->{listing}{missing} = [$r];
 			$j->_add_filename($r);
 			my $rec = App::MtAws::Command::Sync::next_missing($options, $j);
-			ok $rec->isa('App::MtAws::QueueJob::Delete');
-			is $rec->{archive_id}, 'somearchive';
-			is $rec->{relfilename}, 'file1';
+			ok $rec->isa('App::MtAws::Job::FileListDelete');
+			is scalar @{ $rec->{archives} }, 1;
+			my $job = $rec->{archives}[0];
+			is $job->{relfilename}, 'file1';
 			is scalar @{ $j->{listing}{missing} }, 0;
 			ok !defined (App::MtAws::Command::Sync::next_missing($options, $j));
 		};
 		it "should work with two files" => sub {
-			for ({relfilename => 'file1', archive_id => 'somearchive1'}, {relfilename => 'file2', archive_id => 'somearchive2'}) {
-				push @{ $j->{listing}{missing} }, {relfilename => $_->{relfilename}};
+			for ({relfilename => 'file1', size => 123}, {relfilename => 'file2', size => 456}) {
+				push @{ $j->{listing}{missing} }, $_;
 				$j->_add_filename($_);
 			}
 			my $rec = App::MtAws::Command::Sync::next_missing($options, $j);
-			ok $rec->isa('App::MtAws::QueueJob::Delete');
-			is $rec->{archive_id}, 'somearchive1';
-			is $rec->{relfilename}, 'file1';
+			ok $rec->isa('App::MtAws::Job::FileListDelete');
+			is scalar @{ $rec->{archives} }, 1;
+			my $job = $rec->{archives}[0];
+			is $job->{relfilename}, 'file1';
 			is scalar @{ $j->{listing}{missing} }, 1;
 			$rec = App::MtAws::Command::Sync::next_missing($options, $j);
-			is $rec->{archive_id}, 'somearchive2';
-			is $rec->{relfilename}, 'file2';
+			$job = $rec->{archives}[0];
+			is $job->{relfilename}, 'file2';
 		};
 		it "should work with zero files" => sub {
 			$j->{listing}{missing} = [];
 			ok ! defined( App::MtAws::Command::Sync::next_missing($options, $j) );
 		};
 		it "should work with latest version of file" => sub {
-			my $r = {relfilename => 'file1'};
+			my $r = {relfilename => 'file1', size => 123};
 			$j->{listing}{missing} = [$r];
 			$j->_add_filename({relfilename => 'file1', archive_id => 'zz1', size => 123, time => 42, mtime => 111});
 			$j->_add_filename({relfilename => 'file1', archive_id => 'zz2', size => 123, time => 42, mtime => 113});
 			$j->_add_filename({relfilename => 'file1', archive_id => 'zz3', size => 123, time => 42, mtime => 112});
 			my $rec = App::MtAws::Command::Sync::next_missing($options, $j);
-			ok $rec->isa('App::MtAws::QueueJob::Delete');
-			is $rec->{relfilename}, 'file1';
-			is $rec->{archive_id}, 'zz2';
+			ok $rec->isa('App::MtAws::Job::FileListDelete');
+			is scalar @{ $rec->{archives} }, 1;
+			my $job = $rec->{archives}[0];
+			is $job->{archive_id}, 'zz2';
 		};
 		it "should call latest() to get latest version of file" => sub {
-			$j->{listing}{missing} = [{relfilename => 'file1'}];
+			my $r = {relfilename => 'file1', size => 123};
+			$j->{listing}{missing} = [$r];
 			$j->_add_filename({relfilename => 'file1', archive_id => 'zz1', size => 123, time => 42, mtime => 111});
 			$j->_add_filename(my $r2 = {relfilename => 'file1', archive_id => 'zz2', size => 123, time => 42, mtime => 113});
 			App::MtAws::Journal->expects("latest")->returns(sub{ is $_[1], "file1"; $r2})->once;
@@ -572,15 +583,15 @@ describe "command" => sub {
 
 				expect_process_task($j, sub {
 					my ($job) = @_;
-					ok $job->isa('App::MtAws::QueueJob::Iterator');
-					ok ! keys %{$job->{jobs}}; # no pending jobs
-					my $itt = $job->{iterator}->()->{iterator}; # resolve iterator of iterators
+					ok $job->isa('App::MtAws::JobListProxy');
+					is scalar @{ $job->{jobs} }, 1;
+					my $itt = $job->{jobs}[0];
 					for (@files) {
-						my $task = $itt->();
-						is $task->{relfilename}, $_;
-						is $task->{partsize}, $options->{partsize}*1024*1024;
-						ok ! $task->{delete_after_upload};
-						ok $task->isa('App::MtAws::QueueJob::Upload');
+						my $task = $itt->{iterator}->();
+						is $task->{job}{relfilename}, $_;
+						is $task->{job}{partsize}, $options->{partsize}*1024*1024;
+						ok $task->isa('App::MtAws::JobProxy');
+						ok $task->{job}->isa('App::MtAws::Job::FileCreate');
 					}
 					return (1)
 				});
@@ -600,25 +611,23 @@ describe "command" => sub {
 				expect_journal_init($options, $j, {existing=>1});
 				expect_fork_engine;
 				my %files = (
-					file1 => {size => 123, archive_id => 'a1'},
-					file2 => {size => 456, archive_id => 'a2'},
-					file3 => {size => 789, archive_id => 'a3'},
-					file4 => {size => 42, archive_id => 'a4'}
+					file1 => {size => 123},
+					file2 => {size => 456},
+					file3 => {size => 789},
+					file4 => {size => 42}
 				);
 
 				expect_process_task($j, sub {
 					my ($job) = @_;
-					ok $job->isa('App::MtAws::QueueJob::Iterator');
-					ok ! keys %{$job->{jobs}}; # no pending jobs
-					my $itt = $job->{iterator}->()->{iterator}; # resolve iterator of iterators
+					ok $job->isa('App::MtAws::JobListProxy');
+					is scalar @{ $job->{jobs} }, 1;
+					my $itt = $job->{jobs}[0];
 					for (sort keys %files) {
-						my $task = $itt->();
-						is $task->{relfilename}, $_;
-						is $task->{partsize}, $options->{partsize}*1024*1024;
-						ok $task->{delete_after_upload};
-						is $task->{archive_id}, $files{$_}{archive_id};
-						ok $task->isa('App::MtAws::QueueJob::Upload');
-
+						my $task = $itt->{iterator}->();
+						is $task->{job}{relfilename}, $_;
+						is $task->{job}{partsize}, $options->{partsize}*1024*1024;
+						ok $task->isa('App::MtAws::JobProxy');
+						ok $task->{job}->isa('App::MtAws::Job::FileCreate');
 					}
 					return (1)
 				});
@@ -626,14 +635,14 @@ describe "command" => sub {
 				expect_journal_close;
 				$j->{listing}{new} = [];
 				for (sort keys %files) {
-					my $r = {relfilename => $_};
-					$j->_add_filename({%$r, %{$files{$_}}});
+					my $r = {relfilename => $_, size => $files{$_}{size}};
+					$j->_add_filename($r);
 					push @{ $j->{listing}{existing} }, $r;
 				}
 				App::MtAws::Command::Sync->expects("file_size")->returns(sub {
 					my ($file) = @_;
 					$file =~ m!([^/]+)$! or confess;
-					$files{$1}{size}+1 or confess; # return different filesize
+					$files{$1}{size}+1 or confess;
 				})->exactly(scalar keys %files);
 
 				App::MtAws::Command::Sync::run($options, $j);
@@ -655,14 +664,16 @@ describe "command" => sub {
 
 				expect_process_task($j, sub {
 					my ($job) = @_;
-					ok $job->isa('App::MtAws::QueueJob::Iterator');
-					ok ! keys %{$job->{jobs}}; # no pending jobs
-					my $itt = $job->{iterator}->()->{iterator}; # resolve iterator of iterators
+					ok $job->isa('App::MtAws::JobListProxy');
+					is scalar @{ $job->{jobs} }, 1;
+					my $itt = $job->{jobs}[0];
 					for (sort keys %files) {
-						my $task = $itt->();
-						is $task->{relfilename}, $_;
-						is $task->{archive_id}, $files{$_}{archive_id};
-						ok $task->isa('App::MtAws::QueueJob::Delete');
+						my $task = $itt->{iterator}->();
+						ok $task->isa('App::MtAws::Job::FileListDelete');
+						is scalar @{ $task->{archives} }, 1;
+						my $a = $task->{archives}[0];
+						is $a->{relfilename}, $_;
+						is $a->{archive_id}, $files{$_}{archive_id};
 					}
 					return (1)
 				});
@@ -672,7 +683,7 @@ describe "command" => sub {
 				for (sort keys %files) {
 					my $r = {relfilename => $_, archive_id => $files{$_}{archive_id}};
 					$j->_add_filename($r);
-					push @{ $j->{listing}{missing} }, {relfilename => $r->{relfilename}};
+					push @{ $j->{listing}{missing} }, $r;
 				}
 
 				App::MtAws::Command::Sync::run($options, $j);
@@ -709,9 +720,8 @@ describe "command" => sub {
 						expect_fork_engine;
 						expect_process_task($j, sub {
 							my ($job) = @_;
-							my @jobs;
-							while (my $ji = $job->{iterator}->() ) { push @jobs, $ji; }
-							cmp_deeply [ map { $_->{iterator}->() } @jobs ], [
+							ok $job->isa('App::MtAws::JobListProxy');
+							cmp_deeply [ map $_->{iterator}->(), @{ $job->{jobs} } ], [
 								$n ? ('sub_next_new') : (),
 								$r ? ('sub_next_modified') : (),
 								$d ? ('sub_next_missing') : (),

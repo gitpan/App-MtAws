@@ -20,7 +20,7 @@
 
 package App::MtAws::ForkEngine;
 
-our $VERSION = '1.056_1';
+our $VERSION = '1.058';
 
 use strict;
 use warnings;
@@ -92,12 +92,7 @@ sub run_children
 sub run_parent
 {
 	my ($self, $disp_select) = @_;
-	if ($ENV{NEWFSM}) {
-		use App::MtAws::ParentWorkerNew;
-		return $self->{parent_worker} = App::MtAws::ParentWorkerNew->new(children => $self->{children}, disp_select => $disp_select, options=>$self->{options});
-	} else {
-		return $self->{parent_worker} = App::MtAws::ParentWorker->new(children => $self->{children}, disp_select => $disp_select, options=>$self->{options});
-	}
+	return $self->{parent_worker} = App::MtAws::ParentWorker->new(children => $self->{children}, disp_select => $disp_select, options=>$self->{options});
 }
 
 sub parent_exit_on_signal
@@ -215,6 +210,13 @@ sub terminate_children
 	my ($self) = @_;
 	$SIG{CHLD} = 'DEFAULT'; # don't set SIGCHLD to IGNORE, prevents wait() from working under 5.12.2,3 undef OpenBSD
 	$SIG{INT} = $SIG{USR2}='IGNORE';
+	
+	# close all pipes, just in case select() in child is not interruptable (seems it is under 5.14.2?)
+	# https://rt.perl.org/Ticket/Display.html?id=93428
+	for (values %{$self->{children}}) {
+		close $_->{fromchild};
+		close $_->{tochild};
+	}
 	kill (POSIX::SIGUSR2, keys %{$self->{children}}); # TODO: we terminate all children with SIGUSR2 even on normal exit
 	$SIG{TERM} = 'DEFAULT';
 	while( wait() != -1 ){};

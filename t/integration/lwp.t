@@ -28,7 +28,7 @@
 use strict;
 use warnings;
 use FindBin;
-use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use lib "$FindBin::RealBin/../", "$FindBin::RealBin/../../lib";
 use Carp;
 use URI;
 use TestUtils;
