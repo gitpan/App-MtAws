@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '1.058';
+our $VERSION = '1.059';
 our $VERSION_MATURITY = "";
 
 use constant ONE_MB => 1024*1024;
@@ -255,8 +255,8 @@ END
 				keys %{$files};
 			if (keys %filelist) {
 				if ($options->{'dry-run'}) {
-					for (keys %filelist) {
-						print "Will DOWNLOAD (if available) archive $_->{archive_id} (filename $_->{relfilename})\n" for ($j->latest($_));
+					for (values %filelist) {
+						print "Will DOWNLOAD (if available) archive $_->{archive_id} (filename $_->{relfilename})\n";
 					}
 				} else {
 					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::RetrievalFetch->new(file_downloads => $options->{file_downloads}, archives => \%filelist ));
