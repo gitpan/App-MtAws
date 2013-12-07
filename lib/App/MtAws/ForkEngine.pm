@@ -20,7 +20,7 @@
 
 package App::MtAws::ForkEngine;
 
-our $VERSION = '1.059';
+our $VERSION = '1.059_1';
 
 use strict;
 use warnings;
@@ -210,7 +210,7 @@ sub terminate_children
 	my ($self) = @_;
 	$SIG{CHLD} = 'DEFAULT'; # don't set SIGCHLD to IGNORE, prevents wait() from working under 5.12.2,3 undef OpenBSD
 	$SIG{INT} = $SIG{USR2}='IGNORE';
-	
+
 	# close all pipes, just in case select() in child is not interruptable (seems it is under 5.14.2?)
 	# https://rt.perl.org/Ticket/Display.html?id=93428
 	for (values %{$self->{children}}) {

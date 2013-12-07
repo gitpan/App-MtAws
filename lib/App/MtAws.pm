@@ -39,19 +39,20 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '1.059';
+our $VERSION = '1.059_1';
 our $VERSION_MATURITY = "";
 
 use constant ONE_MB => 1024*1024;
 
 use App::MtAws::ParentWorker;
 use App::MtAws::ChildWorker;
-use App::MtAws::JobProxy;
-use App::MtAws::Job::FileCreate;
-use App::MtAws::Job::FileListDelete;
-use App::MtAws::Job::RetrievalFetch;
-use App::MtAws::JobListProxy;
-use App::MtAws::Job::RetrieveInventory;
+
+use App::MtAws::QueueJob::CreateVault;
+use App::MtAws::QueueJob::DeleteVault;
+use App::MtAws::QueueJob::RetrieveInventory;
+use App::MtAws::QueueJob::FetchAndDownload;
+use App::MtAws::QueueJob::Upload;
+
 use File::Find ;
 use File::Spec;
 use App::MtAws::Journal;
@@ -59,8 +60,7 @@ use App::MtAws::ConfigDefinition;
 use App::MtAws::ForkEngine qw/with_forks fork_engine/;
 use Carp;
 use IO::Handle;
-use App::MtAws::Job::CreateVault;
-use App::MtAws::Job::DeleteVault;
+
 use App::MtAws::Utils;
 use App::MtAws::Exceptions;
 use PerlIO::encoding;
@@ -104,6 +104,15 @@ sub load_all_dynamic_modules
 
 sub main
 {
+	$|=1;
+	STDERR->autoflush(1);
+	print "MT-AWS-Glacier, Copyright 2012-2013 Victor Efimov http://mt-aws.com/ Version $VERSION$VERSION_MATURITY\n\n";
+
+	print STDERR "**NOT RECOMMENDED FOR PRODUCTION USE UNDER CYGWIN**\n\n" if ($^O eq 'cygwin');
+	die "**DEVELOPMENT VERSION, NOT FOR PRODUCTION USE. EXITING**\n\n" if ($VERSION =~ /_/);
+	print STDERR "**NOT TESTED UNDER PERLIO=stdio**\n\n" if (defined $ENV{PERLIO} && $ENV{PERLIO} =~ /stdio/);
+	die "Will *not* work under Win32\n" if ($^O eq 'MSWin32');
+
 	check_module_versions();
 	unless (defined eval {process(); 1;}) {
 		dump_error(q{});
@@ -115,14 +124,6 @@ sub main
 
 sub process
 {
-	$|=1;
-	STDERR->autoflush(1);
-	print "MT-AWS-Glacier, Copyright 2012-2013 Victor Efimov http://mt-aws.com/ Version $VERSION$VERSION_MATURITY\n\n";
-
-	print STDERR "**NOT RECOMMENDED FOR PRODUCTION USE UNDER CYGWIN**\n\n" if ($^O eq 'cygwin');
-	print STDERR "**NOT TESTED UNDER PERLIO=stdio**\n\n" if (defined $ENV{PERLIO} && $ENV{PERLIO} =~ /stdio/);
-	die "Will *not* work under Win32\n" if ($^O eq 'MSWin32');
-
 	my ($P) = @_;
 	my ($src, $vault, $journal);
 	my $maxchildren = 4;
@@ -190,14 +191,12 @@ END
 			$j->open_for_write();
 
 			my $ft = ($options->{'data-type'} eq 'filename') ?
-				App::MtAws::JobProxy->new(job => App::MtAws::Job::FileCreate->new(
-					filename => $options->{filename},
-					relfilename => $relfilename,
-					partsize => ONE_MB*$partsize)) :
-				App::MtAws::JobProxy->new(job => App::MtAws::Job::FileCreate->new(
-					stdin => 1,
-					relfilename => $relfilename,
-					partsize => ONE_MB*$partsize));
+				App::MtAws::QueueJob::Upload->new(
+					filename => $options->{filename}, relfilename => $relfilename,
+					partsize => ONE_MB*$partsize, delete_after_upload => 0) :
+				App::MtAws::QueueJob::Upload->new(
+					stdin => 1, relfilename => $relfilename,
+					partsize => ONE_MB*$partsize, delete_after_upload => 0);
 
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, $j);
 			die unless $R;
@@ -217,10 +216,20 @@ END
 					}
 				} else {
 					$j->open_for_write();
+
 					my @filelist = map { {archive_id => $_, relfilename =>$archives->{$_}->{relfilename} } } keys %{$archives};
-					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::FileListDelete->new(archives => \@filelist ));
+					my $ft = App::MtAws::QueueJob::Iterator->new(iterator => sub {
+						if (my $rec = shift @filelist) {
+							return App::MtAws::QueueJob::Delete->new(
+								relfilename => $rec->{relfilename}, archive_id => $rec->{archive_id},
+							);
+						} else {
+							return;
+						}
+					});
 					my ($R) = fork_engine->{parent_worker}->process_task($ft, $j);
 					die unless $R;
+
 					$j->close_for_write();
 				}
 			} else {
@@ -259,7 +268,7 @@ END
 						print "Will DOWNLOAD (if available) archive $_->{archive_id} (filename $_->{relfilename})\n";
 					}
 				} else {
-					my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::RetrievalFetch->new(file_downloads => $options->{file_downloads}, archives => \%filelist ));
+					my $ft = App::MtAws::QueueJob::FetchAndDownload->new(file_downloads => $options->{file_downloads}||{}, archives => \%filelist);
 					my ($R) = fork_engine->{parent_worker}->process_task($ft, $j);
 					die unless $R;
 				}
@@ -276,7 +285,7 @@ END
 		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::RetrieveInventory->new());
+			my $ft = App::MtAws::QueueJob::RetrieveInventory->new();
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'download-inventory') {
@@ -289,14 +298,14 @@ END
 		$options->{concurrency} = 1;
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::CreateVault->new(name => $options->{'vault-name'}));
+			my $ft = App::MtAws::QueueJob::CreateVault->new(name => $options->{'vault-name'});
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'delete-vault') {
 		$options->{concurrency} = 1;
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::DeleteVault->new(name => $options->{'vault-name'}));
+			my $ft = App::MtAws::QueueJob::DeleteVault->new(name => $options->{'vault-name'});
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'help') {

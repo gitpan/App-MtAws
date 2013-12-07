@@ -20,7 +20,7 @@
 
 package App::MtAws::Command::DownloadInventory;
 
-our $VERSION = '1.059';
+our $VERSION = '1.059_1';
 
 use strict;
 use warnings;
@@ -31,23 +31,24 @@ use App::MtAws::ForkEngine  qw/with_forks fork_engine/;
 use App::MtAws::TreeHash;
 use App::MtAws::Exceptions;
 use App::MtAws::Journal;
-use App::MtAws::Job::InventoryFetch;
+
+use App::MtAws::QueueJob::FetchAndDownloadInventory;
 
 sub run
 {
 	my ($options, $j) = @_;
 	with_forks 1, $options, sub {
 
-		my $ft = App::MtAws::JobProxy->new(job => App::MtAws::Job::InventoryFetch->new());
-		my ($R, $attachmentref) = fork_engine->{parent_worker}->process_task($ft, undef);
+		my $ft =  App::MtAws::QueueJob::FetchAndDownloadInventory->new();
+		my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
+		my $attachmentref = $R->{inventory_raw_ref};
+
 		# here we can have response from both JobList or Inventory output..
 		# JobList looks like 'response' => '{"JobList":[],"Marker":null}'
 		# Inventory retriebal has key 'ArchiveList'
 		# TODO: implement it more clear way on level of Job/Tasks object
-
 		croak if -s binaryfilename $options->{'new-journal'}; # TODO: fix race condition between this and opening file
-
-		if ($R && $attachmentref) {
+		if ($R && $attachmentref) { # $attachmentref can be SCALAR REF or can be undef
 			$j->open_for_write();
 			parse_and_write_journal($j, $attachmentref);
 			$j->close_for_write();
