@@ -23,24 +23,23 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 39;
+use Test::More tests => 50;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
 use TestUtils;
 
-warning_fatal();
 
-sub assert_segment_size($$@)
+sub assert_partsize($$@)
 {
 	my $msg = shift;;
 	my $expected = shift;;
 	my $res = config_create_and_parse(@_);
 	ok !($res->{errors}||$res->{warnings}), $msg;
-	is $res->{options}{file_downloads}{'segment-size'}, $expected, $msg;
+	is $res->{options}{partsize}, $expected, $msg;
 }
 
-sub assert_segment_error($$@)
+sub assert_partsize_error($$@)
 {
 	my $msg = shift;;
 	my $error = shift;;
@@ -49,20 +48,18 @@ sub assert_segment_error($$@)
 }
 
 for my $line (
-	[qw!restore-completed --config glacier.cfg --vault myvault --journal j --dir a!],
+	[qw!sync --config glacier.cfg --vault myvault --journal j --dir a --concurrency=1!],
 ) {
 	fake_config sub {
 		disable_validations qw/journal secret key filename dir/ => sub {
-			assert_segment_size '0 size allowed', 0, @$line, qq!--segment-size!, 0;
-			{
-				local $SIG{__WARN__} = sub { $_[0] =~ /invalid for option segment\-size/ or die "Wrong error message $_[0]" };
-				assert_segment_error "non-number size invalid", [{format => 'getopts_error'}], @$line, qq!--segment-size!, 'x';
-			}
-			assert_segment_size "$_ size allowed", $_, @$line, qq!--segment-size!, $_
-				for (qw/1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384/);
-			assert_segment_error "$_ size invalid", [{a => 'segment-size', format => '%option a% must be zero or power of two', value => $_}],
-				@$line, qq!--segment-size!, $_
-					for (qw/3 5 7 6 18 222/)
+			assert_partsize "$_ partsize allowed", $_, @$line, qq!--partsize!, $_
+				for (1, (map { 2**$_ } 1..12));
+			assert_partsize_error "$_ size invalid", [{a => 'partsize', format => 'Part size must be power of two', value => $_}],
+				@$line, qq!--partsize!, $_
+					for (0, (map { (2**$_+1, 2**$_-1) } 2..11));
+			assert_partsize_error "$_ size invalid", [{a => 'partsize', format => '%option a% must be less or equal to 4096', value => $_}],
+				@$line, qq!--partsize!, $_
+					for (2**13, 2**14, 2**15);
 		}
 	}
 }

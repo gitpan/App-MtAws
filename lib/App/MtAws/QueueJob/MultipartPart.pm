@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob::MultipartPart;
 
-our $VERSION = '1.100';
+our $VERSION = '1.101';
 
 use strict;
 use warnings;
@@ -65,7 +65,7 @@ sub read_part
 
 		return (1, $start, $part_final_hash, $attachment);
 	} else {
-		confess "IO error $!" unless defined $r;
+		die exception 'cannot_read_from_file' => "Cannot read from file errno=%errno%", 'ERRNO'  unless defined $r;
 		return;
 	}
 
