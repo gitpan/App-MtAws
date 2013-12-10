@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob;
 
-our $VERSION = '1.101';
+our $VERSION = '1.102';
 
 use strict;
 use warnings;
@@ -68,6 +68,7 @@ sub set_job_proxy_callback
 			confess if $result->{job};
 			confess if $result->{task};
 		}
+		undef $j;
 	}
 }
 
@@ -110,5 +111,7 @@ sub on_done { JOB_DONE }
 sub on_die { confess "on_die"; }
 sub on_default  { confess "Unimplemented"; }
 sub init { confess "Unimplemented"; }
+
+
 
 1;

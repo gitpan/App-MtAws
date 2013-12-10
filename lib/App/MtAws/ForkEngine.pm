@@ -20,7 +20,7 @@
 
 package App::MtAws::ForkEngine;
 
-our $VERSION = '1.101';
+our $VERSION = '1.102';
 
 use strict;
 use warnings;
@@ -117,6 +117,7 @@ sub start_children
 			my @signals = qw/INT TERM USR2 HUP/;
 			for my $sig (@signals) {
 				$SIG{$sig} = sub {
+					print STDERR "CHILD($$) got SIG$sig\n" if $sig eq 'TERM';
 					if ($first_time) {
 						$first_time = 0;
 						exit(1); # we need exit, it will call all destructors which will destroy tempfiles
@@ -136,7 +137,7 @@ sub start_children
 				my $pid = waitpid(-1, WNOHANG);
 				# make sure we caugth signal from our children, not from external command executionin 3rd party module
 				# easy to test by adding `whoami` to parent after-fork-code
-				return unless $pid > 0 and defined $self->{children}{$pid};
+				return unless $pid > 0 and defined delete $self->{children}{$pid}; # we also remove $pid
 			}
 			if ($first_time) {
 				$first_time = 0;

@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob::MultipartPart;
 
-our $VERSION = '1.101';
+our $VERSION = '1.102';
 
 use strict;
 use warnings;
@@ -40,12 +40,20 @@ sub init
 	defined($self->{mtime})||confess;
 	$self->{upload_id}||confess;
 	$self->{fh}||confess;
+	exists($self->{stdin})||confess;
 	$self->{all_raised} = 0;
 	$self->{position} = 0;
 	$self->{th} = App::MtAws::TreeHash->new();
 	$self->{uploadparts} = {};
 
 	$self->enter('fist_part');
+}
+
+
+sub close_file
+{
+	my ($self) = @_;
+	close($self->{fh}) or confess;
 }
 
 sub read_part
@@ -107,8 +115,14 @@ sub on_other_parts
 {
 	my ($self) = @_;
 	my @res = $self->get_part();
-	return @res ? @res : (keys %{$self->{uploadparts}} ? JOB_WAIT : state('done'));
+	return @res ? @res : (keys %{$self->{uploadparts}} ? JOB_WAIT : state('close'));
 }
 
+sub on_close
+{
+	my ($self) = @_;
+	$self->{stdin} or $self->close_file; # close file after EOF found
+	state("done");
+}
 
 1;
