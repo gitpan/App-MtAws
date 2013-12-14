@@ -15,6 +15,9 @@ lib/App/MtAws/Exceptions.pm
 lib/App/MtAws/FileVersions.pm
 lib/App/MtAws/Filter.pm
 lib/App/MtAws/ForkEngine.pm
+lib/App/MtAws/Glacier/Inventory.pm
+lib/App/MtAws/Glacier/Inventory/CSV.pm
+lib/App/MtAws/Glacier/Inventory/JSON.pm
 lib/App/MtAws/Glacier/ListJobs.pm
 lib/App/MtAws/GlacierRequest.pm
 lib/App/MtAws/HttpSegmentWriter.pm
@@ -23,7 +26,6 @@ lib/App/MtAws/Journal.pm
 lib/App/MtAws/LineProtocol.pm
 lib/App/MtAws/MetaData.pm
 lib/App/MtAws/ParentWorker.pm
-lib/App/MtAws/ProxyTask.pm
 lib/App/MtAws/QueueEngine.pm
 lib/App/MtAws/QueueJob.pm
 lib/App/MtAws/QueueJob/CreateVault.pm
@@ -46,7 +48,6 @@ lib/App/MtAws/QueueJob/UploadMultipart.pm
 lib/App/MtAws/QueueJob/Verify.pm
 lib/App/MtAws/QueueJob/VerifyAndUpload.pm
 lib/App/MtAws/QueueJobResult.pm
-lib/App/MtAws/Task.pm
 lib/App/MtAws/TreeHash.pm
 lib/App/MtAws/Utils.pm
 LICENSE
@@ -123,6 +124,8 @@ t/unit/file_versions.t
 t/unit/file_versions_behaviour.t
 t/unit/filename_encodings.t
 t/unit/filter.t
+t/unit/glacier/inventory_csv.t
+t/unit/glacier/inventory_json.t
 t/unit/glacier/list_jobs.t
 t/unit/glacier_request.t
 t/unit/intermediate_file.t

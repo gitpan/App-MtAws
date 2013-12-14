@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob::RetrieveInventory;
 
-our $VERSION = '1.102';
+our $VERSION = '1.103';
 
 use strict;
 use warnings;
@@ -32,13 +32,15 @@ use base 'App::MtAws::QueueJob';
 sub init
 {
 	my ($self) = @_;
+	$self->{format} or confess;
+	$self->{format} =~ /^json|csv$/ or confess;
 	$self->enter('retrieve');
 }
 
 sub on_retrieve
 {
 	my ($self) = @_;
-	return state "wait", task "retrieve_inventory_job", { } => sub {
+	return state "wait", task "retrieve_inventory_job", { format => $self->{format} } => sub {
 		state("done")
 	}
 }

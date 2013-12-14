@@ -20,7 +20,7 @@
 
 package App::MtAws::GlacierRequest;
 
-our $VERSION = '1.102';
+our $VERSION = '1.103';
 
 use strict;
 use warnings;
@@ -35,8 +35,6 @@ use App::MtAws::Utils;
 use App::MtAws::Exceptions;
 use App::MtAws::HttpSegmentWriter;
 use Carp;
-
-
 
 sub new
 {
@@ -177,7 +175,17 @@ END
 
 sub retrieve_inventory
 {
-	my ($self) = @_;
+	my ($self, $format) = @_;
+
+	$format or confess;
+
+	if ($format eq 'json') {
+		$format = 'JSON';
+	} elsif ($format eq 'csv') {
+		$format = 'CSV';
+	} else {
+		confess "unknown inventory format $format";
+	}
 
 	$self->add_header('Content-Type', 'application/x-www-form-urlencoded; charset=utf-8');
 	$self->{url} = "/$self->{account_id}/vaults/$self->{vault}/jobs";
@@ -188,7 +196,7 @@ sub retrieve_inventory
 	my $body = <<"END";
 {
   "Type": "inventory-retrieval",
-  "Format": "JSON"
+  "Format": "$format"
 }
 END
 	# use Test::Tabs
@@ -307,7 +315,18 @@ sub retrieval_download_to_memory
 	my $resp = $self->perform_lwp();
 
 	$resp or confess;
-	return $resp->content;
+
+	my $itype = do {
+		my $ct = $resp->content_type;
+		if ($ct eq 'text/csv') {
+			INVENTORY_TYPE_CSV
+		} elsif ($ct eq 'application/json') {
+			INVENTORY_TYPE_JSON
+		} else {
+			confess "Unknown mime-type $ct";
+		}
+	};
+	return ($resp->content, $itype);
 }
 
 sub create_vault

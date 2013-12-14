@@ -18,45 +18,25 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::ProxyTask;
+package App::MtAws::Glacier::Inventory;
 
-our $VERSION = '1.102';
+our $VERSION = '1.103';
 
 use strict;
 use warnings;
 use utf8;
 
+use Carp;
 
 sub new
 {
-	my ($class, %args) = @_;
-	my $self = \%args;
-
-	my $task = $self->{task}||die;
-	my $id = $self->{id}||die;
-	my $jobid = $self->{jobid}||die;
-
-	$self = $task;
-
-	$self->{_stack} ||= [];
-	push @{ $self->{_stack} }, { id => $self->{id}, jobid => $self->{jobid} };
-
-	$self->{id} = $id;
-	$self->{jobid} = $jobid;
-
-	bless $self, $class;
-	defined($self->{id})||die;
-	return $self;
+	confess "Unimplemented";
 }
 
-sub pop
+sub get_archives
 {
 	my ($self) = @_;
-	my $stack = $self->{_stack};
-	my $s = pop @$stack;
-	$self->{id} = $s->{id};
-	$self->{jobid} = $s->{jobid};
-	$self;
+	$self->_parse unless $self->{data};
+	$self->{data}{ArchiveList};
 }
-	
 1;

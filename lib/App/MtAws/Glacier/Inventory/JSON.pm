@@ -18,26 +18,32 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::Task;
+package App::MtAws::Glacier::Inventory::JSON;
 
-our $VERSION = '1.102';
+our $VERSION = '1.103';
 
 use strict;
 use warnings;
 use utf8;
 
+use Carp;
+use JSON::XS 1.00;
+
+use App::MtAws::Glacier::Inventory ();
+use base q{App::MtAws::Glacier::Inventory};
 
 sub new
 {
-	my ($class, %args) = @_;
-	my $self = \%args;
+	my $class = shift;
+	my $self = { rawdata => \$_[0] };
 	bless $self, $class;
-	$self->{action}||die;
-	defined($self->{id})||die;
-	$self->{data}||die;
-	$self->{result}={};
-	return $self;
+	$self;
 }
 
+sub _parse
+{
+	my ($self) = @_;
+	$self->{data} = JSON::XS->new->allow_nonref->utf8->decode(${ delete $self->{rawdata} || confess });
+}
 
 1;

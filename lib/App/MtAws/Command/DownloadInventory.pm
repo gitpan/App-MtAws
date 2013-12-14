@@ -20,7 +20,7 @@
 
 package App::MtAws::Command::DownloadInventory;
 
-our $VERSION = '1.102';
+our $VERSION = '1.103';
 
 use strict;
 use warnings;
@@ -31,6 +31,8 @@ use App::MtAws::ForkEngine  qw/with_forks fork_engine/;
 use App::MtAws::TreeHash;
 use App::MtAws::Exceptions;
 use App::MtAws::Journal;
+use App::MtAws::Glacier::Inventory::JSON;
+use App::MtAws::Glacier::Inventory::CSV;
 
 use App::MtAws::QueueJob::FetchAndDownloadInventory;
 
@@ -42,6 +44,7 @@ sub run
 		my $ft =  App::MtAws::QueueJob::FetchAndDownloadInventory->new();
 		my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		my $attachmentref = $R->{inventory_raw_ref};
+		my $inventory_type = $R->{inventory_type};
 
 		# here we can have response from both JobList or Inventory output..
 		# JobList looks like 'response' => '{"JobList":[],"Marker":null}'
@@ -50,7 +53,7 @@ sub run
 		croak if -s binaryfilename $options->{'new-journal'}; # TODO: fix race condition between this and opening file
 		if ($R && $attachmentref) { # $attachmentref can be SCALAR REF or can be undef
 			$j->open_for_write();
-			parse_and_write_journal($j, $attachmentref);
+			parse_and_write_journal($j, $inventory_type, $attachmentref);
 			$j->close_for_write();
 		}
 	}
@@ -58,9 +61,18 @@ sub run
 
 sub parse_and_write_journal
 {
-	my ($j, $attachmentref) = @_;
-	my $data = JSON::XS->new->allow_nonref->utf8->decode($$attachmentref);
-	for my $item (@{$data->{'ArchiveList'}}) {
+	my ($j, $inventory_type, $attachmentref) = @_;
+	my $data = do {
+		if ($inventory_type eq INVENTORY_TYPE_JSON) {
+			App::MtAws::Glacier::Inventory::JSON->new($$attachmentref)
+		} elsif ($inventory_type eq INVENTORY_TYPE_CSV) {
+			App::MtAws::Glacier::Inventory::CSV->new($$attachmentref)
+		} else {
+			confess "unknown inventory type $inventory_type";
+		}
+	}->get_archives();
+
+	for my $item (@$data) {
 		my ($relfilename, $mtime) = App::MtAws::MetaData::meta_decode($item->{ArchiveDescription});
 		$relfilename = $item->{ArchiveId} unless defined $relfilename;
 

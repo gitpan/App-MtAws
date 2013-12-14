@@ -20,7 +20,7 @@
 
 package App::MtAws::ChildWorker;
 
-our $VERSION = '1.102';
+our $VERSION = '1.103';
 
 use App::MtAws::LineProtocol;
 use App::MtAws::GlacierRequest;
@@ -133,11 +133,11 @@ sub process_task
 		$console_out = "Downloaded part of archive $data->{filename} at offset $data->{position}, size $data->{download_size}";
 	} elsif ($action eq 'inventory_download_job') {
 		my $req = App::MtAws::GlacierRequest->new($self->{options});
-		my $r = $req->retrieval_download_to_memory($data->{job_id});
+		my ($r, $inventory_type) = $req->retrieval_download_to_memory($data->{job_id});
 		confess "inventory_download_job failed" unless $r;
-		$result = { response => !! $r };
+		$result = { response => !! $r, inventory_type => $inventory_type };
 		$result_attachmentref = \$r;
-		$console_out = "Downloaded inventory in JSON format";
+		$console_out = "Downloaded inventory in ".($inventory_type eq INVENTORY_TYPE_JSON ? "JSON" : "CSV")." format";
 	} elsif ($action eq 'retrieve_archive') {
 		my $req = App::MtAws::GlacierRequest->new($self->{options});
 		my $r = $req->retrieve_archive( $data->{archive_id});
@@ -165,7 +165,7 @@ sub process_task
 		$console_out = "Fetched job list for inventory retrieval";
 	} elsif ($action eq 'retrieve_inventory_job') {
 		my $req = App::MtAws::GlacierRequest->new($self->{options});
-		my $r = $req->retrieve_inventory();
+		my $r = $req->retrieve_inventory($data->{format});
 		confess unless $r;
 		$result = { job_id => $r };
 		$console_out = "Retrieved Inventory, job id $r";

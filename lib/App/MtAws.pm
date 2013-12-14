@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '1.102';
+our $VERSION = '1.103';
 our $VERSION_MATURITY = "";
 
 use constant ONE_MB => 1024*1024;
@@ -285,7 +285,7 @@ END
 		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
 
 		with_forks 1, $options, sub {
-			my $ft = App::MtAws::QueueJob::RetrieveInventory->new();
+			my $ft = App::MtAws::QueueJob::RetrieveInventory->new(format => $options->{'request-inventory-format'});
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
 	} elsif ($action eq 'download-inventory') {
@@ -338,6 +338,7 @@ Commands:
 	  --segment-size - Size for multi-segment download, in megabytes
 	check-local-hash
 	retrieve-inventory
+	  --request-inventory-format - json or csv
 	download-inventory
 	  --new-journal - Write inventory as new journal
 	create-vault VAULT-NAME
