@@ -20,15 +20,15 @@
 
 package App::MtAws::Journal;
 
-our $VERSION = '1.103';
+our $VERSION = '1.103_1';
 
 use strict;
 use warnings;
 use utf8;
 
 
-use File::Find ;
-use File::Spec;
+use File::Find;
+use File::Spec 3.13;
 use Encode;
 use Carp;
 use IO::Handle;
@@ -50,6 +50,12 @@ sub new
 	bless $self, $class;
 
 	$self->{journal_encoding} ||= 'UTF-8';
+
+	if (defined $self->{root_dir}) {
+		# copied from File::Spec::catfile
+		$self->{canon_root_dir} = File::Spec->catdir($self->{root_dir});
+		$self->{canon_root_dir} .= "/" unless substr($self->{canon_root_dir},-1) eq "/";
+	}
 
 	defined($self->{journal_file}) || confess;
 	$self->{journal_h} = {};
@@ -392,8 +398,12 @@ sub _is_file_exists
 sub absfilename
 {
 	my ($self, $relfilename) = @_;
-	confess unless defined($self->{root_dir});
-	return File::Spec->rel2abs($relfilename, $self->{root_dir});
+	confess unless defined($self->{canon_root_dir});
+
+	# Originally it was: File::Spec->rel2abs($relfilename, $self->{root_dir});
+
+	# TODO: maybe add File::Spec->canonpath() and fix absfilename_correct=./dirA/file3 ?
+	$self->{canon_root_dir}.$relfilename;
 }
 
 
