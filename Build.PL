@@ -83,7 +83,8 @@ my $build = Module::Build->new(
 		 # use 0.16 as we have workarounds for above problems
 		'File::Temp' => '0.16',
 
-		'File::Spec' => '3.13',
+		'File::Spec' => '3.12',
+		'Cwd' => 0,
 		'File::stat' => 0,
 		'Getopt::Long' => '2.24',
 

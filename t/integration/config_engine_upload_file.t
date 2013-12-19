@@ -23,17 +23,18 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 246;
+use Test::More tests => 226;
 use Test::Deep;
+use Carp;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
 use Test::MockModule;
+use File::Path;
+use File::stat;
 use Data::Dumper;
 use TestUtils;
 
 warning_fatal();
-
-
 
 
 # upload_file command parsing test
@@ -93,41 +94,6 @@ assert_passes "should work with filename and set-rel-filename",
 	'set-rel-filename' => 'x/y/z',
 	filename => '/tmp/dir/a/myfile';
 
-## dir
-
-assert_passes "should work with filename and dir",
-	qq!upload-file --config glacier.cfg --vault myvault --journal j --filename /tmp/dir/a/myfile --dir /tmp/dir!,
-	'name-type' => 'dir',
-	'data-type' => 'filename',
-	relfilename => 'a/myfile',
-	dir => '/tmp/dir',
-	filename => '/tmp/dir/a/myfile';
-
-
-assert_passes "should work with filename and dir when file right inside dir",
-	qq!upload-file --config glacier.cfg --vault myvault --journal j --filename /tmp/dir/myfile --dir /tmp/dir!,
-	'name-type' => 'dir',
-	'data-type' => 'filename',
-	relfilename => 'myfile',
-	dir => '/tmp/dir',
-	filename => '/tmp/dir/myfile';
-
-assert_passes "should work with filename and dir when filename and dir are relative",
-	qq!upload-file --config glacier.cfg --vault myvault --journal j --filename tmp/dir/a/myfile --dir tmp/dir!,
-	'name-type' => 'dir',
-	'data-type' => 'filename',
-	relfilename => 'a/myfile',
-	dir => 'tmp/dir',
-	filename => 'tmp/dir/a/myfile';
-
-
-assert_passes "should work with filename and dir when file right inside dir when filename and dir are relative",
-	qq!upload-file --config glacier.cfg --vault myvault --journal j --filename tmp/dir/myfile --dir tmp/dir!,
-	'name-type' => 'dir',
-	'data-type' => 'filename',
-	relfilename => 'myfile',
-	dir => 'tmp/dir',
-	filename => 'tmp/dir/myfile';
 
 ##
 ## stdin
@@ -191,18 +157,6 @@ assert_fails "should check set-rel-filename to be relative filename for $_",
 	'require_relative_filename', a => 'set-rel-filename', value => $_;
 }
 
-## dir
-
-assert_fails "filename with fail without set-rel-filename or dir",
-	qq!upload-file --config glacier.cfg --vault myvault --journal j --filename /tmp/dir/a/myfile --dir /tmp/notdir!,
-	['filename', 'dir'],
-	'filename_inside_dir', a => 'filename', b => 'dir';
-
-assert_fails "filename with fail without set-rel-filename or dir",
-	qq!upload-file --config glacier.cfg --vault myvault --journal j --filename /tmp/dir/a/myfile --dir !.("x" x 2048),
-	['filename'],
-	'%option a% should be less than 512 characters', a => 'dir', value => ("x" x 2048); # TODO: test also for bad filename
-
 ##
 ## stdin
 ##
@@ -261,6 +215,7 @@ assert_fails "set-rel-filename and dir as mutual exclusize",
 	qq!upload-file --config glacier.cfg --vault myvault --journal j --stdin --set-rel-filename x/y/z --dir abc --check-max-file-size 100!,
 	['dir'],
 	'mutual', a => 'set-rel-filename', b => 'dir';
+
 
 
 1;

@@ -20,12 +20,13 @@
 
 package App::MtAws::ConfigDefinition;
 
-our $VERSION = "1.103_1";
+our $VERSION = "1.103_2";
 
 use strict;
 use warnings;
 use utf8;
 use File::Spec;
+use File::stat;
 use Encode;
 use Carp;
 use List::Util qw/first/;
@@ -101,14 +102,36 @@ sub check_dir_or_relname
 				custom('relfilename', do {
 					validate 'dir', 'filename';
 					if (valid('dir') && valid('filename')) {
-						my $relfilename = File::Spec->abs2rel(value('filename'), value('dir'));
-						if ($relfilename =~ m!^\.\./!) {
-							error(message('filename_inside_dir',
-								'File specified with "option a" should be inside directory specified in %option b%'),
-								a => 'filename', b => 'dir'),
-							undef;
+
+						my $b_dir = binary_abs_path(binaryfilename value('dir'));
+						my $b_file = binary_abs_path(binaryfilename value('filename'));
+
+						if (!defined $b_dir) {
+							error(message('cannot_resolve_dir',
+								'Directory specified with "%option a%" cannot be resolved to full path'),
+								a => 'dir'), undef
+						} elsif (!defined $b_file) {
+							error(message('cannot_resolve_file',
+								'File specified with "%option a%" cannot be resolved to full path'),
+								a => 'filename'), undef;
 						} else {
-							$relfilename
+							my $relfilename = characterfilename abs2rel($b_file, $b_dir, allow_rel_base => 1);#TODO: no allow_rel_base
+
+							my $dir = value('dir');
+							$dir =~ s!/$!!; # just in case
+
+							confess "something wrong with relative-absolute paths"
+								unless stat(binaryfilename value('filename'))->ino == stat(binaryfilename($dir."/".$relfilename))->ino;
+								#TODO: also check ->dev
+
+							if (!is_relative_filename($relfilename)) {
+								error(message('filename_inside_dir',
+									'File specified with "option a" should be inside directory specified in %option b%'),
+									a => 'filename', b => 'dir'),
+								undef;
+							} else {
+								$relfilename
+							}
 						}
 					} else {
 						undef;

@@ -20,7 +20,7 @@
 
 package App::MtAws::Command::Sync;
 
-our $VERSION = '1.103_1';
+our $VERSION = '1.103_2';
 
 use strict;
 use warnings;
