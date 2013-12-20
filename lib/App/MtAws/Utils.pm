@@ -20,7 +20,7 @@
 
 package App::MtAws::Utils;
 
-our $VERSION = '1.103_3';
+our $VERSION = '1.103_4';
 
 use strict;
 use warnings;
@@ -359,9 +359,14 @@ sub dump_request_response
 }
 
 
+sub get_config_var($) # separate function so we can override it in tests
+{
+	$Config{shift()}
+}
+
 sub is_digest_sha_broken_for_large_data
 {
-	$Config{'longsize'} < 8 && $Digest::SHA::VERSION < 5.62-0.0000001;
+	get_config_var('longsize') < 8 && $Digest::SHA::VERSION < 5.62 - 1E-06;
 }
 
 1;

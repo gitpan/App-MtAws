@@ -20,7 +20,7 @@
 
 package App::MtAws::Glacier::Inventory::CSV;
 
-our $VERSION = '1.103_3';
+our $VERSION = '1.103_4';
 
 use strict;
 use warnings;
@@ -52,7 +52,7 @@ sub _unescape
 	return unless $_[0] =~ /^\"/;
 	$_[0] =~ s/^\"//;
 	$_[0] =~ s/\"$//;
-	$_[0] =~ s/\\(.)/$1/g;
+	$_[0] =~ s/\\"/"/g;
 }
 
 
