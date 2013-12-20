@@ -1,3 +1,4 @@
+### 2013-12-20 v1.110
 
   * Compatibility: upload-file with --filename option behaviour slightly changed:
   both --filename and --dir now resolved to full paths, before determining relative path from --dir` to --filename`
@@ -33,6 +34,8 @@
   This format is undocumented and broken by design. Fixing parser now to parse this.
   this bug was not affecting any real use of mtglacier as mtglacier does not use backslashes in metadata and ignores
   foreign metadata.
+
+  * Cosmetic changes to process manager code
 
 ### 2013-12-14 v1.103
 
