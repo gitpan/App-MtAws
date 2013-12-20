@@ -20,7 +20,7 @@
 
 package App::MtAws::Utils;
 
-our $VERSION = '1.103_2';
+our $VERSION = '1.103_3';
 
 use strict;
 use warnings;
@@ -31,6 +31,8 @@ use File::stat;
 use Carp;
 use Encode;
 use LWP::UserAgent;
+use Digest::SHA;
+use Config;
 use bytes ();
 
 require Exporter;
@@ -40,8 +42,10 @@ use constant INVENTORY_TYPE_CSV => 'CSV';
 use constant INVENTORY_TYPE_JSON => 'JSON';
 
 our @EXPORT = qw/set_filename_encoding get_filename_encoding binaryfilename
-sanity_relative_filename is_relative_filename abs2rel binary_abs_path open_file sysreadfull syswritefull hex_dump_string
-is_wide_string characterfilename try_drop_utf8_flag dump_request_response file_size file_mtime file_exists
+sanity_relative_filename is_relative_filename abs2rel binary_abs_path open_file sysreadfull syswritefull sysreadfull_chk syswritefull_chk
+hex_dump_string is_wide_string
+characterfilename try_drop_utf8_flag dump_request_response file_size file_mtime file_exists file_inodev
+is_digest_sha_broken_for_large_data
 INVENTORY_TYPE_JSON INVENTORY_TYPE_CSV/;
 
 
@@ -84,14 +88,14 @@ sub is_relative_filename
 	1;
 }
 
-
+# TODO: test
 sub binary_abs_path
 {
 	my ($path) = @_;
 
 	local $SIG{__WARN__}=sub{};
 
-	my ($orig_i, $orig_d) = (stat($path)->ino, stat($path)->dev);
+	my $orig_id = file_inodev($path, use_filename_encoding => 0);
 
 	my $abspath = Cwd::abs_path($path);
 
@@ -99,20 +103,10 @@ sub binary_abs_path
 	return undef if $abspath eq ''; # workaround RT#47755
 
 	# workaround RT#47755 - in case perms problem it tries to return File::Spec->rel2abs
-	return undef unless -e $abspath && stat($abspath)->ino == $orig_i && stat($abspath)->dev == $orig_d;
+	return undef unless -e $abspath && file_inodev($abspath, use_filename_encoding => 0) eq $orig_id;
 
 	return $abspath;
 }
-
-sub abs2rel
-{
-	my ($path, $base, %args) = @_;
-	confess "too few arguments" unless defined($path) && defined($base);
-	$args{allow_rel_base} or $base =~ m{^/} or confess "relative basedir not allowed";
-	File::Spec->abs2rel($path, $base);
-}
-
-
 
 our $_filename_encoding = 'UTF-8'; # global var
 
@@ -128,6 +122,22 @@ sub characterfilename(;$)
 {
 	decode(get_filename_encoding, @_ ? shift : $_, Encode::DIE_ON_ERR|Encode::LEAVE_SRC);
 }
+
+# TODO: test
+sub abs2rel
+{
+	my ($path, $base) = (shift, shift);
+	confess "too few arguments" unless defined($path) && defined($base);
+	my (%args) = (use_filename_encoding => 1, @_);
+	if ($args{use_filename_encoding}) {
+		$path = binaryfilename $path;
+		$base = binaryfilename $base;
+	}
+	$args{allow_rel_base} or $base =~ m{^/} or confess "relative basedir not allowed";
+	my $result = File::Spec->abs2rel($path, $base);
+	$args{use_filename_encoding} ? characterfilename($result) : $result;
+}
+
 
 =pod
 
@@ -226,6 +236,19 @@ sub file_mtime($%)
 	return stat($filename)->mtime;
 }
 
+# TODO: test
+sub file_inodev($%)
+{
+	my $filename = shift;
+	my (%args) = (use_filename_encoding => 1, @_);
+	if ($args{use_filename_encoding}) {
+		$filename = binaryfilename $filename;
+	}
+	confess "file not exists" unless -e $filename;
+	my $s = stat($filename);
+	$s->dev."-".$s->ino;
+}
+
 sub is_wide_string
 {
 	defined($_[0]) && utf8::is_utf8($_[0]) && (bytes::length($_[0]) != length($_[0]))
@@ -236,6 +259,12 @@ sub is_wide_string
 sub try_drop_utf8_flag
 {
 	Encode::_utf8_off($_[0]) if utf8::is_utf8($_[0]) && (bytes::length($_[0]) == length($_[0]));
+}
+
+sub sysreadfull_chk($$$)
+{
+	my $len = $_[2];
+	sysreadfull(@_) == $len;
 }
 
 sub sysreadfull($$$)
@@ -257,6 +286,12 @@ sub sysreadfull($$$)
 		}
 	}
 	return $n;
+}
+
+sub syswritefull_chk($$)
+{
+	my $length = length $_[1];
+	syswritefull(@_) == $length
 }
 
 sub syswritefull($$)
@@ -321,6 +356,12 @@ sub dump_request_response
 	}
 	$out .= "\n\n";
 	$out;
+}
+
+
+sub is_digest_sha_broken_for_large_data
+{
+	$Config{'longsize'} < 8 && $Digest::SHA::VERSION < 5.62-0.0000001;
 }
 
 1;

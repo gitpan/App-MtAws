@@ -39,7 +39,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '1.103_2';
+our $VERSION = '1.103_3';
 our $VERSION_MATURITY = "";
 
 use constant ONE_MB => 1024*1024;
@@ -380,7 +380,5 @@ sub check_stdin_not_empty
 	die "Empty input from STDIN - cannot upload empty archive"
 		if eof(STDIN); # we block until first byte arrive, then we put it back in to buffer
 }
-
-BEGIN { load_all_dynamic_modules() if $^C };
 
 1;

@@ -20,13 +20,12 @@
 
 package App::MtAws::ConfigDefinition;
 
-our $VERSION = "1.103_2";
+our $VERSION = "1.103_3";
 
 use strict;
 use warnings;
 use utf8;
 use File::Spec;
-use File::stat;
 use Encode;
 use Carp;
 use List::Util qw/first/;
@@ -115,14 +114,13 @@ sub check_dir_or_relname
 								'File specified with "%option a%" cannot be resolved to full path'),
 								a => 'filename'), undef;
 						} else {
-							my $relfilename = characterfilename abs2rel($b_file, $b_dir, allow_rel_base => 1);#TODO: no allow_rel_base
+							my $relfilename = characterfilename abs2rel($b_file, $b_dir, allow_rel_base => 0, use_filename_encoding => 0);
 
 							my $dir = value('dir');
 							$dir =~ s!/$!!; # just in case
 
 							confess "something wrong with relative-absolute paths"
-								unless stat(binaryfilename value('filename'))->ino == stat(binaryfilename($dir."/".$relfilename))->ino;
-								#TODO: also check ->dev
+								unless file_inodev(value('filename')) eq file_inodev($dir."/".$relfilename);
 
 							if (!is_relative_filename($relfilename)) {
 								error(message('filename_inside_dir',
@@ -358,6 +356,8 @@ sub get_config
 			validation $_, $must_be_an_integer, stop => 1, sub { $_ =~ /^\d+$/ };
 			validation $_, message('Part size must be power of two'), sub { ($_ != 0) && (($_ & ($_ - 1)) == 0) };
 			validation $_, message('%option a% must be less or equal to 4096'), sub { $_ <= 4096 };
+			validation $_, message('On 32 bit systems, when Digest::SHA module version < 5.62, %option a% must be less or equal to 256'),
+				sub { !is_digest_sha_broken_for_large_data() || $_ <= 256 };
 		}
 		for (option('segment-size', type => 'i')) {
 			validation $_, $must_be_an_integer, stop => 1, sub { $_ =~ /^\d+$/ };

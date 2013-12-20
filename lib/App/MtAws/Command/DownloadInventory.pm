@@ -20,7 +20,7 @@
 
 package App::MtAws::Command::DownloadInventory;
 
-our $VERSION = '1.103_2';
+our $VERSION = '1.103_3';
 
 use strict;
 use warnings;

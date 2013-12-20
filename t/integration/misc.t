@@ -1,3 +1,5 @@
+#!/usr/bin/env perl
+
 # mt-aws-glacier - Amazon Glacier sync client
 # Copyright (C) 2012-2013  Victor Efimov
 # http://mt-aws.com (also http://vs-dev.com) vs@vs-dev.com
@@ -18,30 +20,47 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::QueueJob::CreateVault;
-
-our $VERSION = '1.103_3';
-
 use strict;
 use warnings;
-use Carp;
+use Test::More tests => 3;
+use FindBin;
+use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils;
+use App::MtAws;
+use App::MtAws::Utils;
 
-use App::MtAws::QueueJobResult;
-use base 'App::MtAws::QueueJob';
+use Digest::SHA;
+use Config;
 
-sub init
+warning_fatal();
+
+
+#
+# test what untested in perl
+#
+
 {
-	my ($self) = @_;
-	defined($self->{name}) || confess "no vault";
-	$self->enter('create');
-}
-
-sub on_create
-{
-	my ($self) = @_;
-	return state "wait", task "create_vault_job", { name => $self->{name} } => sub {
-		state("done")
+	my $i = 0;
+	while () {
+		last if ++$i == 3;
 	}
+	is $i, 3, "while() should produce infinite loop";
 }
+
+{
+	my $i = 0;
+	alarm 3;
+	++$i while ();
+	alarm 0;
+	is $i, 0, "while() without block should not produce infinite loop";
+}
+
+
+#
+# Utils.pm
+#
+
+is is_digest_sha_broken_for_large_data(), $Config{'longsize'} < 8 && $Digest::SHA::VERSION < 5.62-0.0000001;
+
 
 1;
