@@ -18,30 +18,49 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::QueueJob::CreateVault;
+package App::MtAws::RdWr::Write;
 
 our $VERSION = '1.111_1';
 
+use Carp;
 use strict;
 use warnings;
-use Carp;
+use utf8;
 
-use App::MtAws::QueueJobResult;
-use base 'App::MtAws::QueueJob';
+use base qw/App::MtAws::RdWr/;
+use App::MtAws::Utils qw/is_wide_string/;
 
-sub init
+
+sub _syswrite
 {
-	my ($self) = @_;
-	defined($self->{name}) || confess "no vault";
-	$self->enter('create');
+	syswrite($_[0], $_[1], $_[2], $_[3])
 }
 
-sub on_create
+sub write_exactly
 {
-	my ($self) = @_;
-	return state "wait", task "create_vault_job", { name => $self->{name} } => sub {
-		state("done")
+	my $length = length $_[1];
+	syswritefull(@_) == $length
+}
+
+sub syswritefull
+{
+	my ($self, $len) = ($_[0], length($_[1]));
+
+	confess "upgraded strings not allowed" if is_wide_string($_[1]);
+	my $n = 0;
+	while ($len - $n) {
+		my $i = _syswrite($self->{fh}, $_[1], $len - $n, $n);
+		if (defined($i)) {
+			$n += $i;
+		} elsif ($!{EINTR}) {
+			redo;
+		} else {
+			$self->_adderror($!+0);
+			return $n ? $n : undef;
+		}
 	}
+	return $n;
 }
+
 
 1;

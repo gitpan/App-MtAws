@@ -18,30 +18,33 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::QueueJob::CreateVault;
+package App::MtAws::RdWr;
 
 our $VERSION = '1.111_1';
 
+use Carp;
 use strict;
 use warnings;
-use Carp;
+use utf8;
 
-use App::MtAws::QueueJobResult;
-use base 'App::MtAws::QueueJob';
+use constant RDWR_ERROR => 2;
 
-sub init
+sub new
 {
-	my ($self) = @_;
-	defined($self->{name}) || confess "no vault";
-	$self->enter('create');
+	my ($class, $fh) = @_;
+	confess unless $fh;
+	my $self = { fh => $fh, queue => [] };
+	bless $self, $class;
+	return $self;
 }
 
-sub on_create
+sub _adderror
 {
-	my ($self) = @_;
-	return state "wait", task "create_vault_job", { name => $self->{name} } => sub {
-		state("done")
-	}
+	my ($self, $errno) = @_;
+	push @{ $self->{queue} }, { type => RDWR_ERROR, errno => $errno };
 }
+
+
+
 
 1;
