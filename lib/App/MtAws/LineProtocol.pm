@@ -20,7 +20,7 @@
 
 package App::MtAws::LineProtocol;
 
-our $VERSION = '1.111_1';
+our $VERSION = '1.111_2';
 
 use strict;
 use warnings;
@@ -29,8 +29,6 @@ use Carp;
 
 use JSON::XS;
 use App::MtAws::Utils;
-use App::MtAws::RdWr::Read;
-use App::MtAws::RdWr::Write;
 
 require Exporter;
 use base qw/Exporter/;
@@ -58,21 +56,19 @@ sub get_data
 {
 	my ($fh) = @_;
 
-	my $rd = App::MtAws::RdWr::Read->new($fh); # TODO: move out object creation to caller, otherwise no sense
-
 	my ($len, $line);
 
-	$rd->read_exactly($len, 8) &&
-	$rd->read_exactly($line, $len+0) or
+	sysreadfull_chk($fh, $len, 8) &&
+	sysreadfull_chk($fh, $line, $len+0) or
 	return;
 
 	chomp $line;
 	my ($pid, $action, $taskid, $datasize, $attachmentsize) = split /\t/, $line;
-	$rd->read_exactly(my $data_e, $datasize) or
+	sysreadfull_chk($fh, my $data_e, $datasize) or
 		return;
 	my $attachment = undef;
 	if ($attachmentsize) {
-		$rd->read_exactly($attachment, $attachmentsize) or
+		sysreadfull_chk($fh, $attachment, $attachmentsize) or
 			return;
 	}
 	my $data = decode_data($data_e);
@@ -82,7 +78,6 @@ sub get_data
 sub send_data
 {
 	my ($fh, $action, $taskid, $data, $attachmentref) = @_;
-	my $wr = App::MtAws::RdWr::Write->new($fh); # TODO: move out object creation to caller, otherwise no sense
 	my $data_e = encode_data($data);
 	confess if is_wide_string($data_e);
 	if ($attachmentref) {
@@ -93,10 +88,10 @@ sub send_data
 	my $datasize = length($data_e);
 	my $line = "$$\t$action\t$taskid\t$datasize\t$attachmentsize\n"; # encode_data returns ASCII-7bit data, so ok here
 	confess if is_wide_string($line);
-	$wr->write_exactly(sprintf("%08d", length($line))) &&
-	$wr->write_exactly($line) &&
-	$wr->write_exactly($data_e) &&
-		(!$attachmentsize || $wr->write_exactly($$attachmentref)) or
+	syswritefull_chk($fh, sprintf("%08d", length($line))) &&
+	syswritefull_chk($fh, $line) &&
+	syswritefull_chk($fh, $data_e) &&
+		(!$attachmentsize || syswritefull_chk($fh, $$attachmentref)) or
 		return;
 	return 1;
 }

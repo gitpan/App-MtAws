@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob;
 
-our $VERSION = '1.111_1';
+our $VERSION = '1.111_2';
 
 use strict;
 use warnings;
@@ -34,7 +34,7 @@ sub new
 	my $self = \%args;
 	bless $self, $class;
 	$self->{_state} = 'default';
-	$self->{_jobs} = [];
+	$self->{_jobs} = []; # Jobs is array, but, as you can see below only one element can be stored in it at time.
 	$self->init();
 	return $self;
 }
