@@ -1,5 +1,5 @@
 # mt-aws-glacier - Amazon Glacier sync client
-# Copyright (C) 2012-2013  Victor Efimov
+# Copyright (C) 2012-2014  Victor Efimov
 # http://mt-aws.com (also http://vs-dev.com) vs@vs-dev.com
 # License: GPLv3
 #
@@ -20,7 +20,7 @@
 
 package App::MtAws::MetaData;
 
-our $VERSION = '1.111_2';
+our $VERSION = '1.112';
 
 use strict;
 use warnings;
@@ -33,7 +33,12 @@ use POSIX;
 use Time::Local;
 
 use constant MAX_SIZE => 1024;
+use constant META_JOB_TYPE_FULL => 'full';
 
+require Exporter;
+use base qw/Exporter/;
+
+our @EXPORT = qw/meta_decode meta_job_decode meta_encode meta_job_encode META_JOB_TYPE_FULL/;
 =pod
 
 MT-AWS-GLACIER metadata format ('x-amz-archive-description' field).
@@ -51,7 +56,7 @@ latin1_to_utf8() - input - byte sequence, output - byte sequence
 	Treats input data as Latin1 (ISO 8859-1) encoded sequence and converts it to UTF-8 sequence
 
 isoO8601() - input - time, output - character string
-	ISOO8601 time in the following format YYYYMMDDTHHMMSSZ. Only UTC filezone. No leap seconds supported.
+	ISOO8601 time in the following format YYYYMMDDTHHMMSSZ. Only UTC timezone. No leap seconds supported.
 	When encoding isoO8601() mt-aws-glacier will not store leap seconds. When decoding from isoO8601 leap seconds are not supported (yet).
 
 {'filename': FILENAME, 'mtime': iso8601(MTIME)}
@@ -107,66 +112,98 @@ my $meta_coder = ($JSON::XS::VERSION ge '1.4') ?
 sub meta_decode
 {
 	my ($str) = @_;
-	return (undef, undef) unless defined $str; # protect from undef $str
+	return unless defined $str; # protect from undef $str
 
-	my ($marker, $b64) = split(' ', $str); # split will return empty list if string is empty or contains spaces only
-	if (defined($marker) && $marker eq 'mt1') {
-		return (undef, undef) if !defined $b64 || length($b64) > MAX_SIZE;
-		return _decode_json(_decode_utf8(_decode_b64($b64)));
-	} elsif (defined($marker) && $marker eq 'mt2') {
-		return (undef, undef) if !defined $b64 || length($b64) > MAX_SIZE;
-		return _decode_json(_decode_b64($b64));
+	my ($marker, $b64) = _split_meta($str);
+	return unless defined $marker;
+	if ($marker eq 'mt1') {
+		return _decode_filename_and_mtime(_decode_json(_decode_utf8(_decode_b64($b64))));
+	} elsif ($marker eq 'mt2') {
+		return _decode_filename_and_mtime(_decode_json(_decode_b64($b64)));
 	} else {
-		return (undef, undef);
+		return;
 	}
+}
+
+sub meta_job_decode
+{
+	my ($str) = @_;
+	return unless defined $str; # protect from undef $str
+
+	my ($marker, $b64) = _split_meta($str);
+	return unless defined $marker;
+	if ($marker eq 'mtijob1') {
+		_decode_jobs(_decode_json(_decode_b64($b64)));
+	} else {
+		return;
+	}
+}
+
+sub _split_meta
+{
+	my ($str) = @_;
+	my ($marker, $b64) = split(' ', $str); # split will return empty list if string is empty or contains spaces only
+	return if !defined $b64 || length($b64) > MAX_SIZE;
+	return ($marker, $b64);
 }
 
 sub _decode_b64
 {
 	my ($str) = @_;
-	my $res = eval {
+	return eval {
 		$str =~ tr{-_}{+/};
 		my $padding_n = length($str) % 4;
 		$str .= ('=' x (4 - $padding_n) ) if $padding_n;
 		MIME::Base64::decode_base64($str);
-	};
-	return $@ eq '' ? $res : undef;
+	}; # undef if eval failed
 }
 
 sub _decode_utf8
 {
 	my ($str) = @_;
 	return unless defined $str;
-	my $res = eval {
+	return eval {
 		decode("UTF-8", $str, Encode::DIE_ON_ERR|Encode::LEAVE_SRC)
-	};
-	return $@ eq '' ? $res : undef;
+	};  # undef if eval failed
 }
 
 sub _decode_json
 {
 	my ($str) = @_;
 	return unless defined $str;
-	my $h = eval {
-		$meta_coder->decode($str)
-	};
-	if ($@ ne '') {
-		return (undef, undef);
-	} else {
-		return (undef, undef) unless defined($h->{filename}) && defined($h->{mtime});
-		my $mtime = _parse_iso8601($h->{mtime});
-		return unless defined $mtime;
-		return ($h->{filename}, $mtime);
-	}
+	eval { $meta_coder->decode($str) }
 }
 
+sub _decode_filename_and_mtime
+{
+	my ($h) = @_;
+	return unless defined $h;
+	return unless defined($h->{filename}) && defined($h->{mtime});
+	defined(my $mtime = _parse_iso8601($h->{mtime})) or return;
+	return ($h->{filename}, $mtime);
+}
 
+sub _decode_jobs
+{
+	my ($h) = @_;
+	return unless defined $h;
+	return unless defined($h->{type});
+	return ($h->{type});
+}
 
 sub meta_encode
 {
 	my ($relfilename, $mtime) = @_;
 	return unless defined($mtime) && defined($relfilename);
-	my $res = "mt2 "._encode_b64(_encode_json($relfilename, $mtime));
+	my $res = "mt2 "._encode_b64(_encode_json(_encode_filename_and_mtime($relfilename, $mtime)));
+	return if length($res) > MAX_SIZE;
+	return $res;
+}
+
+sub meta_job_encode
+{
+	my ($type) = @_;
+	my $res = "mtijob1 "._encode_b64(_encode_json({ type => $type }));
 	return if length($res) > MAX_SIZE;
 	return $res;
 }
@@ -186,15 +223,19 @@ sub _encode_utf8
 	return encode("UTF-8",$str,Encode::DIE_ON_ERR|Encode::LEAVE_SRC);
 }
 
+sub _encode_filename_and_mtime
+{
+	my ($relfilename, $mtime) = @_;
+	return {
+		mtime => strftime("%Y%m%dT%H%M%SZ", gmtime($mtime)),
+		filename => $relfilename
+	};
+}
 
 sub _encode_json
 {
-	my ($relfilename, $mtime) = @_;
-
-	return $meta_coder->encode({
-		mtime => strftime("%Y%m%dT%H%M%SZ", gmtime($mtime)),
-		filename => $relfilename
-	}),
+	my ($h) = @_;
+	return $meta_coder->encode($h);
 }
 
 sub _parse_iso8601 # Implementing this as I don't want to have non-core dependencies
@@ -203,8 +244,7 @@ sub _parse_iso8601 # Implementing this as I don't want to have non-core dependen
 	return unless $str =~ /^\s*(\d{4})[\-\s]*(\d{2})[\-\s]*(\d{2})\s*T\s*(\d{2})[\:\s]*(\d{2})[\:\s]*(\d{2})[\,\.\d]{0,10}\s*Z\s*$/i; # _some_ iso8601 support for now
 	my ($year, $month, $day, $hour, $min, $sec) = ($1,$2,$3,$4,$5,$6);
 	$sec = 59 if $sec == 60; # TODO: dirty workaround to avoid dealing with leap seconds
-	my $res = eval { timegm($sec,$min,$hour,$day,$month - 1,$year) };
-	return ($@ ne ' ') ? $res : undef;
+	eval { timegm($sec,$min,$hour,$day,$month - 1,$year) };
 }
 
 1;

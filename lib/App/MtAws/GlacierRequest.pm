@@ -1,5 +1,5 @@
 # mt-aws-glacier - Amazon Glacier sync client
-# Copyright (C) 2012-2013  Victor Efimov
+# Copyright (C) 2012-2014  Victor Efimov
 # http://mt-aws.com (also http://vs-dev.com) vs@vs-dev.com
 # License: GPLv3
 #
@@ -20,7 +20,7 @@
 
 package App::MtAws::GlacierRequest;
 
-our $VERSION = '1.111_2';
+our $VERSION = '1.112';
 
 use strict;
 use warnings;
@@ -191,11 +191,14 @@ sub retrieve_inventory
 	$self->{url} = "/$self->{account_id}/vaults/$self->{vault}/jobs";
 	$self->{method} = 'POST';
 
+	my $job_meta = App::MtAws::MetaData::meta_job_encode(META_JOB_TYPE_FULL);
+
 	#  add "SNSTopic": "sometopic"
 	# no Test::Tabs
 	my $body = <<"END";
 {
   "Type": "inventory-retrieval",
+  "Description": "$job_meta",
   "Format": "$format"
 }
 END
