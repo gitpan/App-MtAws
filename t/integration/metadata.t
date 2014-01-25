@@ -23,14 +23,16 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 1003;
+use Test::More tests => 1050;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
 use App::MtAws::MetaData;
+use App::MtAws::Utils;
 
 use Test::MockModule;
 use MIME::Base64 qw/encode_base64/;
+use Digest::SHA qw/sha256_hex/;
 use Encode;
 use JSON::XS;
 use Data::Dumper;
@@ -330,10 +332,60 @@ sub test_undefined
 		['2009 01-01T 00:00 00 z', 1230768000], # after leap second
 		['2009 01-01T 00:00 00.123 z', 1230768000],
 		['2009 01-01T 00:00 00,1234 z', 1230768000],
+		# more examples with leap second
+		['1998-12-31T23:59:60Z', 915148800],
+		['1999-01-01T00:00:00Z', 915148800],
+		['1998-12-31T23:59:59Z', 915148799],
+		['1998-12-31T23:59:60Z', 915148800],
 	) {
 		my $result = App::MtAws::MetaData::_parse_iso8601($_->[0]);
-		ok($result == $_->[1], 'should parse iso8601');
+		ok($result == $_->[1], "should parse iso8601 $result == $_->[1]");
 	}
+}
+
+
+# check time converts both ways
+
+is App::MtAws::MetaData::_parse_iso8601("16800101T000000Z"), -9151488000;
+is App::MtAws::MetaData::_parse_iso8601("22600101T000000Z"), 9151488000;
+is App::MtAws::MetaData::_parse_iso8601("40000201T000000Z"), 64063267200;
+is App::MtAws::MetaData::_parse_iso8601("19691231T235950Z"), -10;
+is App::MtAws::MetaData::_parse_iso8601("20140114T003509Z"), 1389659709;
+
+is App::MtAws::MetaData::_parse_iso8601("20371231T235959Z"), 2145916799;
+is App::MtAws::MetaData::_parse_iso8601("20380101T000000Z"), 2145916800;
+is App::MtAws::MetaData::_parse_iso8601("19011231T235959Z"), -2145916801;
+is App::MtAws::MetaData::_parse_iso8601("19020101T000000Z"), -2145916800;
+
+ok defined App::MtAws::MetaData::_parse_iso8601(sprintf("2014%02d01T000000Z", $_)) for (1..12);
+ok defined App::MtAws::MetaData::_parse_iso8601(sprintf("201401%02dT000000Z", $_)) for (1,2,30,31);
+ok defined App::MtAws::MetaData::_parse_iso8601(sprintf("20140101T%02d0000Z", $_)) for (0,1,22,23);
+ok defined App::MtAws::MetaData::_parse_iso8601(sprintf("20140101T00%02d00Z", $_)) for (0,1,58,59);
+ok defined App::MtAws::MetaData::_parse_iso8601(sprintf("20140101T0000%02dZ", $_)) for (0,1,58,59);
+
+ok !defined App::MtAws::MetaData::_parse_iso8601("20141301T000000Z");
+ok !defined App::MtAws::MetaData::_parse_iso8601("20140132T000000Z");
+ok !defined App::MtAws::MetaData::_parse_iso8601("20140101T240000Z");
+ok !defined App::MtAws::MetaData::_parse_iso8601("20140101T006000Z");
+ok !defined App::MtAws::MetaData::_parse_iso8601("20140101T000063Z");
+
+{
+	my @a;
+	for my $year (0..10,90..110,180..210, 350..360, 900..1100, 1800..1850, 1890..1910, 1970..2040, 2090..2106,
+		(map { $_* 100-2, $_* 100-1, $_* 100, $_*100+1, $_*100+2 } 25..99), 9901..9999)
+	{
+		for my $month (1,2,3,12) {
+			for my $day (1..2, 28, ($month == 2 && ( ($year % 100 == 0) ? ($year % 400 == 0) : ($year % 4 == 0)  ) ) ? (29) : () ) {
+				for my $time ("000000", "235959") {
+					my $str = sprintf("%04d%02d%02dT%sZ", $year, $month, $day, $time);
+					my $r = App::MtAws::MetaData::_parse_iso8601($str);
+					die $r unless $r =~ /^\-?\d+$/; # numbers only, no floating point
+					push @a, $r;
+				}
+			}
+		}
+	}
+	is sha256_hex(join(",", @a)), '3676ede53ea3b3c08d6766966f6e4877ef3a954dfc1ea42dd7925141b0370111';
 }
 
 # list vs scalar context

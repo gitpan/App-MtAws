@@ -20,7 +20,7 @@
 
 package App::MtAws::MetaData;
 
-our $VERSION = '1.112';
+our $VERSION = '1.112_1';
 
 use strict;
 use warnings;
@@ -31,6 +31,7 @@ use MIME::Base64;
 use JSON::XS;
 use POSIX;
 use Time::Local;
+use App::MtAws::Utils;
 
 use constant MAX_SIZE => 1024;
 use constant META_JOB_TYPE_FULL => 'full';
@@ -179,6 +180,8 @@ sub _decode_filename_and_mtime
 	my ($h) = @_;
 	return unless defined $h;
 	return unless defined($h->{filename}) && defined($h->{mtime});
+	 # TODO: is that good to return undef everytime something missing? Maybe return error in case signature etc
+	 # correct but time is broken - it's more robust.
 	defined(my $mtime = _parse_iso8601($h->{mtime})) or return;
 	return ($h->{filename}, $mtime);
 }
@@ -238,13 +241,55 @@ sub _encode_json
 	return $meta_coder->encode($h);
 }
 
+
+# iso8601 time parsing
+
+use constant SEC_PER_DAY => 86400;
+use constant YEARS_PER_CENTURY => 100;
+use constant DAYS_PER_YEAR => 365;
+
+sub is_leap
+{
+	($_[0] % 400 ==0) || ( ($_[0] % 100 != 0) && ($_[0] % 4 == 0) )
+}
+
+our %_leap_cache;
+sub number_of_leap_years
+{
+	my ($y1, $y2, $m) = @_;
+	$_leap_cache{$y1,$y2,$m} ||= do {
+		my $cnt = 0;
+		for ($y1+1..$y2-1) {
+			$cnt++ if is_leap($_);
+		}
+		$cnt++ if ($m < 3 ) && is_leap($y1);
+		$cnt++ if ($m >= 3) && is_leap($y2);
+		$cnt;
+	}
+}
+
 sub _parse_iso8601 # Implementing this as I don't want to have non-core dependencies
 {
 	my ($str) = @_;
 	return unless $str =~ /^\s*(\d{4})[\-\s]*(\d{2})[\-\s]*(\d{2})\s*T\s*(\d{2})[\:\s]*(\d{2})[\:\s]*(\d{2})[\,\.\d]{0,10}\s*Z\s*$/i; # _some_ iso8601 support for now
 	my ($year, $month, $day, $hour, $min, $sec) = ($1,$2,$3,$4,$5,$6);
-	$sec = 59 if $sec == 60; # TODO: dirty workaround to avoid dealing with leap seconds
-	eval { timegm($sec,$min,$hour,$day,$month - 1,$year) };
+	my $leap = 0;
+	$leap = $sec - 59, $sec = 59 if ($sec == 60 || $sec == 61);
+
+	# some Y2038 bugs in timegm, workaround it. we need consistency across platforms and perl versions when parsing vault metadata
+	if ($year < 1000 || ( !is_y2038_supported && (($year <= 1901) || ($year >= 2038)) )) {
+		while ($year <= 1901) {
+			$leap -= number_of_leap_years($year, $year + YEARS_PER_CENTURY, $month)*SEC_PER_DAY;
+			$year += YEARS_PER_CENTURY;
+			$leap -= YEARS_PER_CENTURY*SEC_PER_DAY*DAYS_PER_YEAR;
+		}
+		while ($year >= 2038) {
+			$leap += number_of_leap_years($year - YEARS_PER_CENTURY, $year, $month)*SEC_PER_DAY;
+			$year -= YEARS_PER_CENTURY;
+			$leap += YEARS_PER_CENTURY*SEC_PER_DAY*DAYS_PER_YEAR;
+		}
+	}
+	eval { timegm($sec,$min,$hour,$day,$month - 1,$year) + $leap };
 }
 
 1;
