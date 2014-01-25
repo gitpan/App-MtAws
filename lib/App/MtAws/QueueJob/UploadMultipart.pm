@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob::UploadMultipart;
 
-our $VERSION = '1.112_2';
+our $VERSION = '1.112_3';
 
 use strict;
 use warnings;

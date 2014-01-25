@@ -33,7 +33,7 @@
 
 package App::MtAws::TreeHash;
 
-our $VERSION = '1.112_2';
+our $VERSION = '1.112_3';
 
 use strict;
 use warnings;
