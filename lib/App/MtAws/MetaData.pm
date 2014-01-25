@@ -20,7 +20,7 @@
 
 package App::MtAws::MetaData;
 
-our $VERSION = '1.112_1';
+our $VERSION = '1.112_2';
 
 use strict;
 use warnings;
@@ -58,7 +58,8 @@ latin1_to_utf8() - input - byte sequence, output - byte sequence
 
 isoO8601() - input - time, output - character string
 	ISOO8601 time in the following format YYYYMMDDTHHMMSSZ. Only UTC timezone. No leap seconds supported.
-	When encoding isoO8601() mt-aws-glacier will not store leap seconds. When decoding from isoO8601 leap seconds are not supported (yet).
+	Supported year range is from 1000 to 9999
+	When encoding isoO8601() mt-aws-glacier will not store leap seconds. When decoding from isoO8601 leap seconds will be dropped.
 
 {'filename': FILENAME, 'mtime': iso8601(MTIME)}
 	Hash with two keys: 'filename' and 'mtime'. Corresponds to JSON 'Object'.
@@ -71,8 +72,8 @@ FILENAME (character string)
 	with known encoding.
 MTIME (time)
 	is file last modification time with 1 second resolution. Can be below Y1970.
-	Internal representation is epoch time, so it can be any valid epoch time (including negative values and zero). On some system it's
-	32bit signed, on others 64bit signed, for some filesystems it's 34 bit signed etc.
+	Internal representation is epoch time, so it can be any valid epoch time (including negative values and zero).Supported
+	range - from year 1000 to 9999 (inclusive)
 
 Version 'mt2'
 =====================
@@ -198,7 +199,8 @@ sub meta_encode
 {
 	my ($relfilename, $mtime) = @_;
 	return unless defined($mtime) && defined($relfilename);
-	my $res = "mt2 "._encode_b64(_encode_json(_encode_filename_and_mtime($relfilename, $mtime)));
+	defined(my $res = _encode_b64(_encode_json(_encode_filename_and_mtime($relfilename, $mtime)))) or return;
+	$res = "mt2 ".$res;
 	return if length($res) > MAX_SIZE;
 	return $res;
 }
@@ -214,6 +216,7 @@ sub meta_job_encode
 sub _encode_b64
 {
 	my ($str) = @_;
+	return unless defined $str;
 	my $res = MIME::Base64::encode_base64($str,'');
 	$res =~ s/=+\z//;
 	$res =~ tr{+/}{-_};
@@ -229,8 +232,9 @@ sub _encode_utf8
 sub _encode_filename_and_mtime
 {
 	my ($relfilename, $mtime) = @_;
+	defined(my $iso = _to_iso8601($mtime)) or return;
 	return {
-		mtime => strftime("%Y%m%dT%H%M%SZ", gmtime($mtime)),
+		mtime => $iso,
 		filename => $relfilename
 	};
 }
@@ -238,6 +242,7 @@ sub _encode_filename_and_mtime
 sub _encode_json
 {
 	my ($h) = @_;
+	return unless defined $h;
 	return $meta_coder->encode($h);
 }
 
@@ -268,16 +273,24 @@ sub number_of_leap_years
 	}
 }
 
+sub _to_iso8601
+{
+	my ($time) = @_;
+	return if $time < -30610224000 || $time > 253402300799;
+	strftime("%Y%m%dT%H%M%SZ", gmtime($time));
+}
+
 sub _parse_iso8601 # Implementing this as I don't want to have non-core dependencies
 {
 	my ($str) = @_;
 	return unless $str =~ /^\s*(\d{4})[\-\s]*(\d{2})[\-\s]*(\d{2})\s*T\s*(\d{2})[\:\s]*(\d{2})[\:\s]*(\d{2})[\,\.\d]{0,10}\s*Z\s*$/i; # _some_ iso8601 support for now
 	my ($year, $month, $day, $hour, $min, $sec) = ($1,$2,$3,$4,$5,$6);
+	return if $year < 1000;
 	my $leap = 0;
 	$leap = $sec - 59, $sec = 59 if ($sec == 60 || $sec == 61);
 
 	# some Y2038 bugs in timegm, workaround it. we need consistency across platforms and perl versions when parsing vault metadata
-	if ($year < 1000 || ( !is_y2038_supported && (($year <= 1901) || ($year >= 2038)) )) {
+	if (!is_y2038_supported && (($year <= 1901) || ($year >= 2038)) ) {
 		while ($year <= 1901) {
 			$leap -= number_of_leap_years($year, $year + YEARS_PER_CENTURY, $month)*SEC_PER_DAY;
 			$year += YEARS_PER_CENTURY;

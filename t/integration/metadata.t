@@ -23,7 +23,7 @@
 use strict;
 use warnings;
 use utf8;
-use Test::More tests => 1050;
+use Test::More tests => 1054;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
@@ -284,6 +284,7 @@ sub test_undefined
 # test error cacth while encoding
 {
 	ok defined App::MtAws::MetaData::meta_encode('filename', -1), 'should not catch negative mtime';
+	ok !defined App::MtAws::MetaData::meta_encode('filename', -30639629694), 'should disallow time before Y1000';
 	ok !defined App::MtAws::MetaData::meta_encode('filename'), 'should catche missed mtime';
 	ok !defined App::MtAws::MetaData::meta_encode(undef, 4), 'should catche missed filename';
 	ok defined App::MtAws::MetaData::meta_encode('filename', 0), 'should allow 0 mtime';
@@ -369,23 +370,37 @@ ok !defined App::MtAws::MetaData::_parse_iso8601("20140101T240000Z");
 ok !defined App::MtAws::MetaData::_parse_iso8601("20140101T006000Z");
 ok !defined App::MtAws::MetaData::_parse_iso8601("20140101T000063Z");
 
+ok !defined App::MtAws::MetaData::_parse_iso8601("09990101T000000Z"), "should disallow years before 1000";
+ok defined App::MtAws::MetaData::_to_iso8601(253402300799);
+ok !defined App::MtAws::MetaData::_to_iso8601(253402300799+1), "should disallow years after 9999";
+
+# test correctness and consistency of _parse_iso8601 and _to_iso8601
 {
 	my @a;
-	for my $year (0..10,90..110,180..210, 350..360, 900..1100, 1800..1850, 1890..1910, 1970..2040, 2090..2106,
+	for my $year (1000..1100, 1800..1850, 1890..1910, 1970..2040, 2090..2106,
 		(map { $_* 100-2, $_* 100-1, $_* 100, $_*100+1, $_*100+2 } 25..99), 9901..9999)
 	{
 		for my $month (1,2,3,12) {
-			for my $day (1..2, 28, ($month == 2 && ( ($year % 100 == 0) ? ($year % 400 == 0) : ($year % 4 == 0)  ) ) ? (29) : () ) {
+			for my $day (
+				1..2, 28,
+				($month == 2 && ( ($year % 100 == 0) ? ($year % 400 == 0) : ($year % 4 == 0)  ) ) ? (29) : (),
+				($month == 12 || $month == 1) ? (30, 31) : ()
+			) {
 				for my $time ("000000", "235959") {
 					my $str = sprintf("%04d%02d%02dT%sZ", $year, $month, $day, $time);
 					my $r = App::MtAws::MetaData::_parse_iso8601($str);
+					if (is_64bit_os) {
+						my $str_a = App::MtAws::MetaData::_to_iso8601($r); # reverse
+						die "$str, $r" unless defined $str_a;
+						die "$str_a $str" unless $str_a eq $str;
+					}
 					die $r unless $r =~ /^\-?\d+$/; # numbers only, no floating point
 					push @a, $r;
 				}
 			}
 		}
 	}
-	is sha256_hex(join(",", @a)), '3676ede53ea3b3c08d6766966f6e4877ef3a954dfc1ea42dd7925141b0370111';
+	is sha256_hex(join(",", @a)), '49c852f65d2d9ceeccdc02f64214f1a2d249d00337bf669288c34a603ff7acbf', "hardcoded checksum";
 }
 
 # list vs scalar context
