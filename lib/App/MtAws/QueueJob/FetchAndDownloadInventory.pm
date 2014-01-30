@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob::FetchAndDownloadInventory;
 
-our $VERSION = '1.112_3';
+our $VERSION = '1.112_4';
 
 use strict;
 use warnings;
