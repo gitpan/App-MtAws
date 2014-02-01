@@ -37,7 +37,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '1.112_5';
+our $VERSION = '1.113';
 our $VERSION_MATURITY = "";
 
 use constant ONE_MB => 1024*1024;
@@ -109,7 +109,7 @@ sub main
 {
 	$|=1;
 	STDERR->autoflush(1);
-	print "MT-AWS-Glacier, Copyright 2012-2013 Victor Efimov http://mt-aws.com/ Version $VERSION$VERSION_MATURITY\n\n";
+	print "MT-AWS-Glacier, Copyright 2012-2014 Victor Efimov http://mt-aws.com/ Version $VERSION$VERSION_MATURITY\n\n";
 
 	warn "**NOT RECOMMENDED FOR PRODUCTION USE UNDER CYGWIN**\n\n" if ($^O eq 'cygwin');
 	die "**DEVELOPMENT VERSION, NOT FOR PRODUCTION USE. EXITING**\n\n" if ($VERSION =~ /_/);

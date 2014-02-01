@@ -20,7 +20,7 @@
 
 package App::MtAws::QueueJob::CreateVault;
 
-our $VERSION = '1.112_5';
+our $VERSION = '1.113';
 
 use strict;
 use warnings;

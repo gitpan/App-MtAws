@@ -1,3 +1,5 @@
+### 2014-02-01 v1.113
+
   * Fixed: Y2038 problem with file modification time in metadata (i.e. journal and Amazon Glacier servers).
   Some OSes and filesystems don't support years after 2038 (i.e. Linux 32bit)
   Some perl versions don't support handling dates after 2038 (i.e. 32bit perl before 5.12 and
@@ -24,6 +26,9 @@
   https://forums.aws.amazon.com/thread.jspa?threadID=141807&tstart=0
 
   * Cosmetic changes to docs
+
+  * CPAN install - on some systems like ARM, some NAS, 32bit OSes decrease number of concurrent tests during install.
+  Might help preventing out-of-memory problems (but makes test slower).
 
 ### 2014-01-14 v1.112
 
