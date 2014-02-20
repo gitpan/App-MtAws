@@ -26,13 +26,13 @@ use Test::More tests => 42;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/../$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::QueueJobResult;
 use App::MtAws::QueueJob::MultipartFinish;
 use App::MtAws::TreeHash;
 use QueueHelpers;
-use TestUtils;
 
-warning_fatal();
+
 
 use Data::Dumper;
 

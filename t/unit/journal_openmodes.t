@@ -28,15 +28,15 @@ use Test::Deep;
 use File::Path;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::Journal;
 use App::MtAws::Exceptions;
 use Test::MockModule;
 use POSIX;
 use Carp;
-use TestUtils;
 
 
-warning_fatal();
+
 
 my $mtroot = get_temp_dir();
 my $rootdir = 'def';

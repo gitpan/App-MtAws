@@ -20,7 +20,7 @@
 
 package App::MtAws::DateTime;
 
-our $VERSION = '1.113';
+our $VERSION = '1.114';
 
 use strict;
 use warnings;
@@ -30,8 +30,7 @@ use POSIX;
 use Time::Local;
 use App::MtAws::Utils;
 
-require Exporter;
-use base qw/Exporter/;
+use Exporter 'import';
 
 our @EXPORT = qw/epoch_to_iso8601 iso8601_to_epoch/;
 
@@ -82,6 +81,7 @@ sub iso8601_to_epoch
 {
 	my ($str) = @_;
 	 # only _some_ iso8601 format support for now
+	utf8::downgrade($str); # ascii regexps below
 	my ($year, $month, $day, $hour, $min, $sec) =
 		$str =~ /^\s*(\d{4})[\-\s]*(\d{2})[\-\s]*(\d{2})\s*T\s*(\d{2})[\:\s]*(\d{2})[\:\s]*(\d{2})[\,\.\d]{0,10}\s*Z\s*$/i or
 		return;

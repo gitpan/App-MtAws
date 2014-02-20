@@ -20,7 +20,7 @@
 
 package App::MtAws::ConfigEngine;
 
-our $VERSION = '1.113';
+our $VERSION = '1.114';
 
 use Getopt::Long 2.24 qw/:config no_ignore_case/ ;
 use Encode;
@@ -32,8 +32,7 @@ use utf8;
 use App::MtAws::Exceptions;
 use App::MtAws::Utils;
 
-require Exporter;
-use base qw/Exporter/;
+use Exporter 'import';
 
 our @EXPORT = qw/option options positional command validation message
 	mandatory optional seen deprecated validate scope

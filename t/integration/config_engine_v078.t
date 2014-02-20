@@ -27,11 +27,11 @@ use Test::More tests => 184;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use Test::MockModule;
 use Data::Dumper;
-use TestUtils;
 
-warning_fatal();
+
 
 #	print Dumper({errors => $errors, warnings => $warnings, result => $result});
 

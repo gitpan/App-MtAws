@@ -21,8 +21,8 @@
 package JobListEmulator;
 use strict;
 use warnings;
+use TestUtils 'w_fatal';
 use Carp;
-use TestUtils;
 use JSON::XS 1.00;
 
 sub new

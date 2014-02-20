@@ -27,12 +27,12 @@ use Test::More tests => 18;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::Journal;
 use File::Path;
 use POSIX;
-use TestUtils;
 
-warning_fatal();
+
 
 
 my $mtroot = get_temp_dir();

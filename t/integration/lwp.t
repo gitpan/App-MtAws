@@ -29,16 +29,16 @@ use strict;
 use warnings;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use Carp;
 use URI;
-use TestUtils;
 use Test::More;
 use HTTP::Daemon;
 use App::MtAws;
 
 print "# LWP Versions:".LWP->VERSION().",".HTTP::Message->VERSION.",".HTTP::Daemon->VERSION()."\n" unless @ARGV;
 
-warning_fatal();
+
 
 my $proto = 'http';
 

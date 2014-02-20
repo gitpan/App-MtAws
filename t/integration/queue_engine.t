@@ -26,14 +26,14 @@ use Test::More tests => 90;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::QueueJobResult;
-use TestUtils;
 use LCGRandom;
 use MyQueueEngine;
 
 use Data::Dumper;
 
-warning_fatal();
+
 
 {
 	{

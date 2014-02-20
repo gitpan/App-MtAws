@@ -26,10 +26,10 @@ use utf8;
 use Test::More tests => 10;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use Data::Dumper;
-use TestUtils;
 
-warning_fatal();
+
 
 
 for (

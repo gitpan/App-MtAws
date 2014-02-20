@@ -26,13 +26,13 @@ use utf8;
 use Test::More tests => 4154;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::MetaData;
 use Encode;
 use JSON::XS;
 use POSIX;
-use TestUtils;
 
-warning_fatal();
+
 
 my $meta_coder = JSON::XS->new->utf8;
 

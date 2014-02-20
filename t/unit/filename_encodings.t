@@ -28,11 +28,11 @@ use Test::More tests => 50;
 use Encode;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 
 use App::MtAws::Utils;
-use TestUtils;
 
-warning_fatal();
+
 
 
 is get_filename_encoding(), 'UTF-8', "default filename encoding should be UTF-8";

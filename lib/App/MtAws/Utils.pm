@@ -20,7 +20,7 @@
 
 package App::MtAws::Utils;
 
-our $VERSION = '1.113';
+our $VERSION = '1.114';
 
 use strict;
 use warnings;
@@ -36,8 +36,7 @@ use Time::Local;
 use Config;
 use bytes ();
 
-require Exporter;
-use base qw/Exporter/;
+use Exporter 'import';
 
 use constant INVENTORY_TYPE_CSV => 'CSV';
 use constant INVENTORY_TYPE_JSON => 'JSON';

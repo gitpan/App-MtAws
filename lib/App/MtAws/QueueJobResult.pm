@@ -20,14 +20,14 @@
 
 package App::MtAws::QueueJobResult;
 
-our $VERSION = '1.113';
+our $VERSION = '1.114';
 
 use strict;
 use warnings;
 
 use Carp;
 use Scalar::Util qw/blessed/;
-use base 'Exporter';
+use Exporter 'import';
 
 use constant JOB_RETRY => "MT_J_RETRY";
 use constant JOB_OK => "MT_J_OK";

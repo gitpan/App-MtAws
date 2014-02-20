@@ -29,14 +29,14 @@ use Test::More tests => 60;
 use Encode;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::Utils;
 use Encode;
 use POSIX;
-use TestUtils;
 use Carp;
 use Time::HiRes qw/usleep/;
 
-#warning_fatal();
+#
 
 {
 	my $mtroot = get_temp_dir();

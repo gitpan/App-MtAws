@@ -30,16 +30,17 @@ use Carp;
 use Encode;
 use FindBin;
 use POSIX;
-use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
 use Data::Dumper;
 
 # before 'use xxx Utils'
 
-BEGIN { *CORE::GLOBAL::sysread = sub(*\$$;$) { &_sysread; }; };
-BEGIN { *CORE::GLOBAL::syswrite = sub(*$;$$) { &_syswrite; }; };
+BEGIN { no warnings 'once'; *CORE::GLOBAL::sysread = sub(*\$$;$) { &_sysread; }; };
+BEGIN { no warnings 'once'; *CORE::GLOBAL::syswrite = sub(*$;$$) { &_syswrite; }; };
+
+use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 
 use App::MtAws::Utils;
-use TestUtils;
 
 
 my $mtroot = get_temp_dir();
@@ -47,7 +48,7 @@ open(my $tmp, ">", "$mtroot/infile") or confess;
 close $tmp;
 open(my $in, "<", "$mtroot/infile") or confess;
 
-warning_fatal();
+
 
 {
 	no warnings 'redefine';
@@ -273,4 +274,3 @@ warning_fatal();
 
 
 1;
-

@@ -27,10 +27,10 @@ use Test::More tests => 6;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::Journal;
 use File::Path;
 use POSIX;
-use TestUtils;
 use POSIX;
 use Time::Local;
 use Carp;
@@ -38,7 +38,7 @@ use App::MtAws::Utils;
 use App::MtAws::MetaData;
 use App::MtAws::Command::DownloadInventory;
 
-warning_fatal();
+
 
 my $mtroot = get_temp_dir();
 my $localroot = "$mtroot/download_inventory";

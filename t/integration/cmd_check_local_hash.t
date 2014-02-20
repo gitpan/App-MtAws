@@ -27,13 +27,13 @@ use Test::More tests => 5;
 use Test::Deep;
 use FindBin;
 use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::Journal;
 use App::MtAws::Exceptions;
 use File::Path;
 use POSIX;
-use TestUtils;
 
-warning_fatal();
+
 
 my $mtroot = get_temp_dir();
 my $localroot = "$mtroot/cmd_check_local_hash";

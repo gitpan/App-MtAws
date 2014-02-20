@@ -28,11 +28,11 @@ use Carp;
 use FindBin;
 use Scalar::Util qw/weaken/;
 use lib map { "$FindBin::RealBin/../$_" } qw{../lib ../../lib};
+use TestUtils 'w_fatal';
 use App::MtAws::Glacier::Inventory::CSV;
 
-use TestUtils;
 
-warning_fatal();
+
 
 use Data::Dumper;
 
