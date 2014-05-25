@@ -1,3 +1,5 @@
+#!/usr/bin/env perl
+
 # mt-aws-glacier - Amazon Glacier sync client
 # Copyright (C) 2012-2014  Victor Efimov
 # http://mt-aws.com (also http://vs-dev.com) vs@vs-dev.com
@@ -18,32 +20,30 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::QueueJob::Retrieve;
-
-our $VERSION = '1.114_1';
-
 use strict;
 use warnings;
-use Carp;
+use utf8;
+use Test::More tests => 256;
+use FindBin;
+use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use App::MtAws::SHAHash qw/large_sha256_hex/;
+use Digest::SHA qw/sha256_hex/;
 
-use App::MtAws::QueueJobResult;
-use base 'App::MtAws::QueueJob';
+local $SIG{__WARN__} = sub {die "Termination after a warning: $_[0]"};
 
-sub init
 {
-	my ($self) = @_;
-	defined($self->{relfilename}) || confess "no relfilename";
-	defined($self->{filename}) || confess "no filename";
-	$self->{archive_id} || confess;
-	$self->enter('retrieve');
-}
-
-sub on_retrieve
-{
-	my ($self) = @_;
-	return state "wait", task "retrieve_archive", { map { $_ => $self->{$_} } qw/archive_id relfilename filename/ } => sub { # TODO: filename unneeded?
-		state("done")
+	for my $chunksize (0..7) {
+		for my $messagesize (0..$chunksize*4+1) {
+			my $letter = 'A';
+			my $message = join('', map { $letter++ } 1..$messagesize);
+			my $original_message = $message;
+			my $got = large_sha256_hex($message, $chunksize);
+			my $expected = sha256_hex($message);
+			is $message, $original_message;
+			is $got, $expected, "$chunksize, $messagesize";
+		}
 	}
 }
+
 
 1;

@@ -18,32 +18,36 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::QueueJob::Retrieve;
+
+package App::MtAws::SHAHash;
 
 our $VERSION = '1.114_1';
 
 use strict;
 use warnings;
+use Digest::SHA;
 use Carp;
 
-use App::MtAws::QueueJobResult;
-use base 'App::MtAws::QueueJob';
+use Exporter 'import';
+our @EXPORT_OK = qw/large_sha256_hex/;
 
-sub init
-{
-	my ($self) = @_;
-	defined($self->{relfilename}) || confess "no relfilename";
-	defined($self->{filename}) || confess "no filename";
-	$self->{archive_id} || confess;
-	$self->enter('retrieve');
-}
 
-sub on_retrieve
+sub large_sha256_hex
 {
-	my ($self) = @_;
-	return state "wait", task "retrieve_archive", { map { $_ => $self->{$_} } qw/archive_id relfilename filename/ } => sub { # TODO: filename unneeded?
-		state("done")
+	return Digest::SHA::sha256_hex($_[0]) if $Digest::SHA::VERSION ge '5.63';
+
+	my $chunksize = $_[1] || 4*1024*1024;
+
+	my $sha = Digest::SHA->new(256);
+	my $size = length($_[0]);
+
+	my $offset = 0;
+	while ($offset < $size) {
+		$sha->add(substr($_[0], $offset, $chunksize));
+		$offset += $chunksize;
 	}
+	$sha->hexdigest;
 }
+
 
 1;
