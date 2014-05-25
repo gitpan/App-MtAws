@@ -1,3 +1,5 @@
+#!/usr/bin/env perl
+
 # mt-aws-glacier - Amazon Glacier sync client
 # Copyright (C) 2012-2014  Victor Efimov
 # http://mt-aws.com (also http://vs-dev.com) vs@vs-dev.com
@@ -18,25 +20,25 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package App::MtAws::Glacier::Inventory;
-
-our $VERSION = '1.115';
-
 use strict;
 use warnings;
 use utf8;
+use FindBin;
+use lib map { "$FindBin::RealBin/$_" } qw{../lib ../../lib};
+use BenchmarkTest tests => 1;
+use Test::More;
 
-use Carp;
+use App::MtAws::SHAHash qw/large_sha256_hex/;
+use Digest::SHA qw/sha256_hex/;
 
-sub new
-{
-	confess "Unimplemented";
-}
+local $SIG{__WARN__} = sub {die "Termination after a warning: $_[0]"};
 
-sub get_archives
-{
-	my ($self) = @_;
-	$self->_parse unless $self->{data};
-	$self->{data}{ArchiveList};
-}
+# constructing message with $messagesize * MB size
+my $messagesize = 100;
+my $onemb = 1024*1024;
+my $message = '';
+$message .= "x" x $onemb for (1..1024);
+# / whole this stupid code needed to workaround perl memory bugs for old perl versions
+my $got = large_sha256_hex($message);
+is $got, 'e99508f2bd8ee171c7e41eb0370907eeddf47dba62efbcf99dd25e48ee87c4c8';
 1;

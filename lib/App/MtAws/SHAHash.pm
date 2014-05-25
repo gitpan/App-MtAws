@@ -21,25 +21,38 @@
 
 package App::MtAws::SHAHash;
 
-our $VERSION = '1.114_2';
+our $VERSION = '1.115';
 
 use strict;
 use warnings;
 use Digest::SHA;
 use Carp;
 
+use constant ONE_MB => 1024*1024;
 use Exporter 'import';
 our @EXPORT_OK = qw/large_sha256_hex/;
 
+sub _length
+{
+	length($_[0])
+}
 
 sub large_sha256_hex
 {
-	return Digest::SHA::sha256_hex($_[0]) if $Digest::SHA::VERSION ge '5.63';
+	return Digest::SHA::sha256_hex($_[0]) if $Digest::SHA::VERSION ge '5.63'; # unaffected version
 
-	my $chunksize = $_[1] || 4*1024*1024;
+	my $size = _length($_[0]);
+	my $chunksize = $_[1];
+
+	unless ($chunksize) { # if chunk size unspecified
+		if ($size <= 256*ONE_MB) {
+			return Digest::SHA::sha256_hex($_[0]); # small data chunks unaffected
+		} else {
+			$chunksize = 4*ONE_MB; # perhaps need increase chunksize for very large $size
+		}
+	}
 
 	my $sha = Digest::SHA->new(256);
-	my $size = length($_[0]);
 
 	my $offset = 0;
 	while ($offset < $size) {
