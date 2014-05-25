@@ -20,7 +20,7 @@
 
 package App::MtAws::Glacier::Inventory;
 
-our $VERSION = '1.114_1';
+our $VERSION = '1.114_2';
 
 use strict;
 use warnings;
