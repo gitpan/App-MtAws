@@ -18,7 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-=pod
+=head1 App::MtAws::Filter
 
 (I)
 
@@ -101,7 +101,7 @@ b) AND there is no INCLUDE rules before this exclude RULE
 
 package App::MtAws::Filter;
 
-our $VERSION = '1.115';
+our $VERSION = '1.116';
 
 use strict;
 use warnings;

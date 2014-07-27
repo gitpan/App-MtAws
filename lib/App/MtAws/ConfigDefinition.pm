@@ -20,7 +20,7 @@
 
 package App::MtAws::ConfigDefinition;
 
-our $VERSION = "1.115";
+our $VERSION = "1.116";
 
 use strict;
 use warnings;
@@ -124,7 +124,7 @@ sub check_dir_or_relname
 
 							if (!is_relative_filename($relfilename)) {
 								error(message('filename_inside_dir',
-									'File specified with "option a" should be inside directory specified in %option b%'),
+									'File specified with %option a% should be inside directory specified in %option b%'),
 									a => 'filename', b => 'dir'),
 								undef;
 							} else {
@@ -210,6 +210,8 @@ sub check_https
 			error('LWP::UserAgent 6.x required to use HTTPS') unless LWP->VERSION() ge '6';
 			require LWP::Protocol::https;
 			error('LWP::Protocol::https 6.x required to use HTTPS') unless LWP::Protocol::https->VERSION && LWP::Protocol::https->VERSION ge '6';
+			error('Mozilla::CA is missing. Some distributions decouple it from LWP::Protocol::https (while they don\'t have right to do so). Please install Mozilla::CA')
+				unless is_mozilla_ca_installed();
 		} else {
 			error('IO::Socket::SSL or LWP::Protocol::https is not installed');
 		}

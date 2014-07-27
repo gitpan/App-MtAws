@@ -13,7 +13,7 @@ Amazon Glacier is an archive/backup service with very low storage price. However
 
 ## Version
 
-* Version 1.115 (See [ChangeLog][mt-aws glacier changelog] or follow [@mtglacier](https://twitter.com/mtglacier) for updates)  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
+* Version 1.116 (See [ChangeLog][mt-aws glacier changelog] or follow [@mtglacier](https://twitter.com/mtglacier) for updates)  [![Build Status](https://travis-ci.org/vsespb/mt-aws-glacier.png?branch=master)](https://travis-ci.org/vsespb/mt-aws-glacier)
 
 [mt-aws glacier changelog]:https://github.com/vsespb/mt-aws-glacier/blob/master/ChangeLog
 
@@ -156,7 +156,7 @@ Can be installed/updated via custom repository
 
 6. install/update `LWP::UserAgent` and `LWP::Protocol::https` using [cpanm]
 
-##### Debian 7 (Wheezy)
+##### Debian 7 (Wheezy), including rasbian for Raspberry Pi
 
 Can be installed/updated via custom repository
 
@@ -250,7 +250,8 @@ To use HTTPS you also need:
 
 Install the following packages:
 
-`p5-libwww-perl p5-json-XS`
+Install `LWP::UserAgent` (`p5-libwww-perl`), `JSON::XS` (`p5-json-XS`). For HTTPS support you need `LWP::Protocol::https`, however on MacOS X
+you also need `Mozilla::CA` (it should go with `LWP::Protocol::https`, but it can be missing).
 
 #### Install mt-aws-glacier
 
@@ -362,7 +363,7 @@ need `mt-aws-glacier`, other software most likely will restore your data but loo
 		# protocol=http (default) or https
 		protocol=http
 
-	(you can skip any config option and specify it directly in command line)
+	(you can skip any config option and specify it directly in command line, command line options override same options in config)
 3. Create a vault in specified region, using Amazon Console (`myvault`) or using mtglacier
 
 		./mtglacier create-vault myvault --config glacier.cfg
@@ -850,7 +851,7 @@ Currently it's guaranteed that traversal stop only in case when:
 + 6) Non-ASCII characters in PATTERNS are supported.
 
 ## Additional command line options
-NOTE: Any command line option can be used in config file as well.
+NOTE: Any command line option can be used in config file as well, but options specified on command line override options specified in config.
 
 1. `concurrency` (with `sync`, `upload-file`, `restore`, `restore-completed` commands) - number of parallel upload streams to run. (default 4)
 
