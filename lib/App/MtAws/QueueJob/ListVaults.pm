@@ -18,49 +18,41 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-package App::MtAws::SHAHash;
+package App::MtAws::QueueJob::ListVaults;
 
 our $VERSION = '1.120';
 
 use strict;
 use warnings;
-use Digest::SHA;
 use Carp;
 
-use constant ONE_MB => 1024*1024;
-use Exporter 'import';
-our @EXPORT_OK = qw/large_sha256_hex/;
+use App::MtAws::QueueJobResult;
+use App::MtAws::Glacier::ListVaults;
+use base 'App::MtAws::QueueJob';
 
-sub _length
+sub init
 {
-	length($_[0])
+	my ($self) = @_;
+	$self->{marker} = undef;
+	$self->{all_vaults} = [];
+	$self->enter("list");
 }
 
-sub large_sha256_hex
+sub on_list
 {
-	return Digest::SHA::sha256_hex($_[0]) if $Digest::SHA::VERSION ge '5.63'; # unaffected version
+	my ($self) = @_;
+	return state "wait", task "list_vaults", {  marker => $self->{marker} } => sub {
+		my ($args) = @_;
 
-	my $size = _length($_[0]);
-	my $chunksize = $_[1];
-
-	unless ($chunksize) { # if chunk size unspecified
-		if ($size <= 256*ONE_MB) {
-			return Digest::SHA::sha256_hex($_[0]); # small data chunks unaffected
+		my ($marker, @vaults) = App::MtAws::Glacier::ListVaults->new( $args->{response} || confess )->get_list_vaults();
+		push @{$self->{all_vaults}}, @vaults;
+		if ($marker) {
+			$self->{marker} = $marker;
+			return state 'list';
 		} else {
-			$chunksize = 4*ONE_MB; # perhaps need increase chunksize for very large $size
+			return state 'done';
 		}
 	}
-
-	my $sha = Digest::SHA->new(256);
-
-	my $offset = 0;
-	while ($offset < $size) {
-		$sha->add(substr($_[0], $offset, $chunksize));
-		$offset += $chunksize;
-	}
-	$sha->hexdigest;
 }
-
 
 1;

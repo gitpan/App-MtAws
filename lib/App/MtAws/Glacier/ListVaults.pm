@@ -18,48 +18,42 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-package App::MtAws::SHAHash;
+package App::MtAws::Glacier::ListVaults;
 
 our $VERSION = '1.120';
 
 use strict;
 use warnings;
-use Digest::SHA;
+use utf8;
+
 use Carp;
+use JSON::XS 1.00;
 
-use constant ONE_MB => 1024*1024;
-use Exporter 'import';
-our @EXPORT_OK = qw/large_sha256_hex/;
+use App::MtAws::Utils;
+use App::MtAws::MetaData;
 
-sub _length
+
+sub new
 {
-	length($_[0])
+	my $class = shift;
+	my $self = { rawdata => \$_[0] };
+	bless $self, $class;
+	$self;
 }
 
-sub large_sha256_hex
+sub _parse
 {
-	return Digest::SHA::sha256_hex($_[0]) if $Digest::SHA::VERSION ge '5.63'; # unaffected version
+	my ($self) = @_;
+	return if $self->{data};
+	$self->{data} = JSON::XS->new->allow_nonref->decode(${ delete $self->{rawdata} || confess });
 
-	my $size = _length($_[0]);
-	my $chunksize = $_[1];
+}
 
-	unless ($chunksize) { # if chunk size unspecified
-		if ($size <= 256*ONE_MB) {
-			return Digest::SHA::sha256_hex($_[0]); # small data chunks unaffected
-		} else {
-			$chunksize = 4*ONE_MB; # perhaps need increase chunksize for very large $size
-		}
-	}
-
-	my $sha = Digest::SHA->new(256);
-
-	my $offset = 0;
-	while ($offset < $size) {
-		$sha->add(substr($_[0], $offset, $chunksize));
-		$offset += $chunksize;
-	}
-	$sha->hexdigest;
+sub get_list_vaults
+{
+	my ($self) = @_;
+	$self->_parse;
+	$self->{data}{Marker}, @{$self->{data}{VaultList}};
 }
 
 

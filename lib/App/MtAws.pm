@@ -37,7 +37,7 @@ use warnings;
 use utf8;
 use 5.008008; # minumum perl version is 5.8.8
 
-our $VERSION = '1.117';
+our $VERSION = '1.120';
 our $VERSION_MATURITY = "";
 
 use constant ONE_MB => 1024*1024;
@@ -96,6 +96,7 @@ sub load_all_dynamic_modules
 	require App::MtAws::Command::Retrieve;
 	require App::MtAws::Command::CheckLocalHash;
 	require App::MtAws::Command::DownloadInventory;
+	require App::MtAws::Command::ListVaults;
 }
 
 sub check_all_dynamic_modules
@@ -311,6 +312,11 @@ END
 			my $ft = App::MtAws::QueueJob::DeleteVault->new(name => $options->{'vault-name'});
 			my ($R) = fork_engine->{parent_worker}->process_task($ft, undef);
 		}
+	} elsif ($action eq 'list-vaults') {
+		$options->{concurrency} = 1; # TODO implement this in ConfigEngine
+		require App::MtAws::Command::ListVaults;
+		check_module_versions;
+		App::MtAws::Command::ListVaults::run($options);
 	} elsif ($action eq 'help') {
 ## no Test::Tabs
 		print <<"END";
@@ -351,6 +357,8 @@ Commands:
 	  --set-rel-filename - Relative filename to use in Journal (if dir not specified)
 	  --stdin - Upload from STDIN
 	  --check-max-file-size - Specify to ensure there will be less than 10 000 parts
+	list-vaults
+	  --format for-humans|mtmsg
 	version - prints debug information about software installed
 Config format (text file):
 	key=YOURKEY
